@@ -1552,7 +1552,8 @@ const UIController = {
 
     /**
      * Render a single warehouse line with small squares
-     * SPECIAL: Line J = "Ready to go" box (no label, no stats)
+     * SPECIAL: Line I = "Other area" box (green, no label, no stats)
+     * SPECIAL: Line J = "Ready to go" box (green, no label, no stats)
      * SPECIAL: Line K & L = "Arrangement Area" boxes (amber, no label, no stats)
      * SPECIAL: Line G & O = Single row (35 boxes only)
      * RIGHT COLUMN: P, O, N, M have labels on the right side
@@ -1562,6 +1563,18 @@ const UIController = {
         
         // Check if this is a right-side line (P, O, N, M in right column)
         const isRightSide = ['P', 'O', 'N', 'M'].includes(line);
+        
+        // SPECIAL CASE: Line I - "Other area" box (SAME AS READY TO GO)
+        if (line === 'I') {
+            return `
+                <div class="warehouse-line-row warehouse-line-other warehouse-line-no-label" data-line="${line}">
+                    <div class="warehouse-other-box">
+                        <iconify-icon icon="solar:widget-5-bold" width="24" style="color: rgba(124, 156, 90, 0.8)"></iconify-icon>
+                        <span class="other-text">Other area</span>
+                    </div>
+                </div>
+            `;
+        }
         
         // SPECIAL CASE: Line J - "Ready to go" box (NO LABEL, NO STATS)
         if (line === 'J') {
@@ -1592,7 +1605,7 @@ const UIController = {
             return this.renderSingleRowLine(line, occupancyMap, isRightSide);
         }
         
-        // NORMAL RENDERING for all other lines
+        // NORMAL RENDERING for all other lines (A-H, M-P)
         // Count occupied slots
         let occupiedCount = 0;
         for (let pos = 1; pos <= 70; pos++) {
