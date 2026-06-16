@@ -1,13 +1,10 @@
 /**
- * UI Controller
+ * UI Controller - Storage Layout Focus
  * Handles all UI rendering and user interactions
  */
 
 const UIController = {
     elements: {
-        allShelfContainer: null,
-        allEmptyState: null,
-        totalCards: null,
         searchMOInput: null,
         searchMOBtn: null,
         addMOInput: null,
@@ -20,7 +17,6 @@ const UIController = {
         heroClearBtn: null
     },
 
-    currentLine: 'all',
     heroPanelCards: [],
     OVERDUE_THRESHOLD_HOURS: 72,
 
@@ -28,9 +24,6 @@ const UIController = {
      * Initialize UI elements
      */
     init() {
-        this.elements.allShelfContainer = document.getElementById('allShelfContainer');
-        this.elements.allEmptyState = document.getElementById('allEmptyState');
-        this.elements.totalCards = document.getElementById('totalCards');
         this.elements.searchMOInput = document.getElementById('searchMOInput');
         this.elements.searchMOBtn = document.getElementById('searchMOBtn');
         this.elements.addMOInput = document.getElementById('addMOInput');
@@ -43,60 +36,10 @@ const UIController = {
         this.elements.heroClearBtn = document.getElementById('hero-clear-btn');
 
         this.setupEventListeners();
-        this.setupScrollListener();
         this.setupHeroPanelScrollListener();
-        this.setupExcelImport(); // ← NEW: Excel import functionality
-        this.setupStorageScrollListener(); // ← ADD THIS LINE
+        this.setupExcelImport();
         this.render();
         this.setMode('add');
-    },
-
-    /**
-     * Setup scroll listener for storage layout
-     */
-    setupStorageScrollListener() {
-        const container = document.getElementById('storage-layout-container');
-        if (!container) return;
-        
-        container.addEventListener('scroll', () => {
-            this.updateStorageScrollIndicator();
-        });
-        
-        window.addEventListener('resize', () => {
-            this.updateStorageScrollIndicator();
-        });
-    },
-
-    /**
-     * Setup scroll listener for main WIP cards section 
-     */
-    setupScrollListener() {
-        const wrapper = document.getElementById('allShelfContainerWrapper');
-        if (!wrapper) return;
-        
-        wrapper.addEventListener('scroll', () => {
-            this.updateScrollIndicator();
-        });
-        
-        window.addEventListener('resize', () => {
-            this.updateScrollIndicator();
-        });
-    },
-
-    /**
-     * Setup scroll listener for hero panel
-     */
-    setupHeroPanelScrollListener() {
-        const wrapper = document.getElementById('hero-panel-body-wrapper');
-        if (!wrapper) return;
-        
-        wrapper.addEventListener('scroll', () => {
-            this.updateHeroPanelScrollState();
-        });
-        
-        window.addEventListener('resize', () => {
-            this.updateHeroPanelScrollState();
-        });
     },
 
     /**
@@ -130,7 +73,46 @@ const UIController = {
     },
 
     /**
-     * NEW: Setup Excel import functionality
+     * Setup scroll listener for hero panel
+     */
+    setupHeroPanelScrollListener() {
+        const wrapper = document.getElementById('hero-panel-body-wrapper');
+        if (!wrapper) return;
+        
+        wrapper.addEventListener('scroll', () => {
+            this.updateHeroPanelScrollState();
+        });
+        
+        window.addEventListener('resize', () => {
+            this.updateHeroPanelScrollState();
+        });
+    },
+
+    /**
+     * Update hero panel scroll state
+     */
+    updateHeroPanelScrollState() {
+        const wrapper = document.getElementById('hero-panel-body-wrapper');
+        if (!wrapper) return;
+        
+        const isScrollable = wrapper.scrollHeight > wrapper.clientHeight;
+        const isScrolledToBottom = wrapper.scrollHeight - wrapper.scrollTop <= wrapper.clientHeight + 10;
+        
+        if (isScrollable && !isScrolledToBottom) {
+            wrapper.classList.add('has-scroll');
+        } else {
+            wrapper.classList.remove('has-scroll');
+        }
+        
+        if (isScrolledToBottom) {
+            wrapper.classList.add('scrolled-to-bottom');
+        } else {
+            wrapper.classList.remove('scrolled-to-bottom');
+        }
+    },
+
+    /**
+     * Setup Excel import functionality
      */
     setupExcelImport() {
         const dropZone = document.getElementById('excel-drop-zone');
@@ -177,7 +159,7 @@ const UIController = {
     },
 
     /**
-     * NEW: Handle Excel file upload
+     * Handle Excel file upload
      */
     async handleExcelUpload(file) {
         const fileNameEl = document.getElementById('import-file-name');
@@ -190,17 +172,14 @@ const UIController = {
         fileNameEl.textContent = 'Parsing...';
         
         try {
-            // Check if ExcelParser exists
             if (typeof ExcelParser === 'undefined') {
-                throw new Error('ExcelParser module not loaded. Please check if excelParser.js is included.');
+                throw new Error('ExcelParser module not loaded');
             }
             
             const schedule = await ExcelParser.parseFile(file);
             
-            // Show file name
             fileNameEl.textContent = file.name;
             
-            // Show summary
             const summaryEl = document.getElementById('import-summary');
             const summaryText = document.getElementById('import-summary-text');
             
@@ -209,7 +188,6 @@ const UIController = {
                 summaryEl.classList.remove('hidden');
             }
             
-            // Analyze and show dashboard
             this.updateMODashboard();
             
             BarcodeScanner.playSuccess();
@@ -225,7 +203,7 @@ const UIController = {
     },
 
     /**
-     * Update navbar delivery schedule (NO DASHBOARD IN HERO)
+     * Update navbar delivery schedule
      */
     updateMODashboard() {
         if (typeof ExcelParser === 'undefined') {
@@ -239,29 +217,24 @@ const UIController = {
             return;
         }
         
-        // Update navbar schedule dropdown
         this.updateNavbarSchedule(analysis);
-        
         console.log('Navbar schedule updated:', analysis);
     },
 
     /**
-     * Update navbar delivery schedule dropdown - WITH OVERDUE SECTION
+     * Update navbar delivery schedule dropdown
      */
     updateNavbarSchedule(analysis) {
         if (!analysis) return;
 
-        // Show/hide indicator
         const indicator = document.getElementById('delivery-schedule-indicator');
         if (indicator) {
             indicator.classList.remove('hidden');
         }
 
-        // Update badges - prioritize overdue
         const urgentBadge = document.getElementById('urgent-badge');
         const upcomingBadge = document.getElementById('upcoming-badge');
 
-        // Show urgent badge for overdue + urgent items
         const urgentCount = (analysis.overdue?.length || 0) + (analysis.urgent?.length || 0);
         if (urgentCount > 0 && urgentBadge) {
             urgentBadge.classList.remove('hidden');
@@ -277,14 +250,12 @@ const UIController = {
             upcomingBadge.classList.add('hidden');
         }
 
-        // Update dropdown counts
         const inWIPCount = document.getElementById('dropdown-in-wip-count');
         const missingCount = document.getElementById('dropdown-missing-count');
 
         if (inWIPCount) inWIPCount.textContent = analysis.inWIP.length;
         if (missingCount) missingCount.textContent = analysis.missing.length;
 
-        // NEW: OVERDUE SECTION (Show first - highest priority)
         const overdueSection = document.createElement('div');
         overdueSection.id = 'dropdown-overdue-section';
         
@@ -312,7 +283,6 @@ const UIController = {
             `;
         }
 
-        // Update urgent section (non-overdue urgent items)
         const urgentSection = document.getElementById('dropdown-urgent-section');
         const urgentList = document.getElementById('dropdown-urgent-list');
         
@@ -333,7 +303,6 @@ const UIController = {
             urgentSection.classList.add('hidden');
         }
 
-        // Update upcoming section
         const upcomingSection = document.getElementById('dropdown-upcoming-section');
         const upcomingList = document.getElementById('dropdown-upcoming-list');
         const upcomingTitle = document.getElementById('dropdown-upcoming-title');
@@ -360,7 +329,6 @@ const UIController = {
             upcomingSection.classList.add('hidden');
         }
 
-        // Update missing section
         const missingSection = document.getElementById('dropdown-missing-section');
         const missingList = document.getElementById('dropdown-missing-list');
 
@@ -380,7 +348,6 @@ const UIController = {
             missingSection.classList.add('hidden');
         }
 
-        // Insert overdue section at the top (if exists)
         const scrollContainer = document.querySelector('#schedule-dropdown .overflow-y-auto');
         if (scrollContainer && analysis.overdue && analysis.overdue.length > 0) {
             const existingOverdue = document.getElementById('dropdown-overdue-section');
@@ -389,7 +356,6 @@ const UIController = {
             scrollContainer.insertBefore(overdueSection, scrollContainer.firstChild);
         }
 
-        // Hide empty state
         const emptyState = document.getElementById('dropdown-empty');
         if (emptyState) {
             emptyState.classList.add('hidden');
@@ -402,7 +368,6 @@ const UIController = {
     handleAddMO() {
         const moNumber = this.elements.addMOInput.value.trim();
         
-        // Validate MO input
         if (!moNumber) {
             BarcodeScanner.showScanFeedback('❌ Vui lòng nhập mã MO!', 'warning');
             this.elements.addMOInput.focus();
@@ -415,7 +380,6 @@ const UIController = {
             return;
         }
 
-        // Check for duplicate MO
         if (WIPManager.isDuplicateMO(moNumber)) {
             const existingCard = WIPManager.getByMO(moNumber);
             BarcodeScanner.playError();
@@ -432,23 +396,20 @@ const UIController = {
             return;
         }
 
-        // Get next available shelf
         const nextShelf = ShelfLocations.getNextAvailable();
 
         if (!nextShelf) {
             BarcodeScanner.playError();
-            BarcodeScanner.showScanFeedback('❌ TẤT CẢ 700 VỊ TRÍ ĐÃ ĐẦY!', 'error');
+            BarcodeScanner.showScanFeedback('❌ TẤT CẢ 1,120 VỊ TRÍ ĐÃ ĐẦY!', 'error');
             console.error('All shelf locations are full!');
             return;
         }
 
-        // Create the card (will validate MO again inside)
         const card = WIPManager.createCard(nextShelf, moNumber);
         
         if (card) {
             this.render();
             
-            // Update dashboard if Excel data is loaded
             if (typeof ExcelParser !== 'undefined' && ExcelParser.scheduledMOs) {
                 this.updateMODashboard();
             }
@@ -465,388 +426,334 @@ const UIController = {
             this.elements.addMOInput.value = '';
             this.elements.addMOInput.focus();
         } else {
-            // Error already shown by createCard()
             this.elements.addMOInput.value = '';
             this.elements.addMOInput.focus();
         }
     },
 
     /**
-     * Filter cards by line
-     */
-    filterByLine(line) {
-        this.currentLine = line;
-        
-        document.querySelectorAll('.line-tab-btn').forEach(btn => {
-            const btnLine = btn.getAttribute('data-line');
-            
-            if (btnLine === line) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        
-        this.render();
-    },
-
-    /**
-     * Render all cards
+     * Main render function
      */
     render() {
-        let allCards = WIPManager.getAll();
-
-        if (this.currentLine !== 'all') {
-            allCards = allCards.filter(card => card.shelfCode.startsWith(this.currentLine + '-'));
-        }
-
-        this.renderCards(allCards);
-        this.updateTotalCount();
+        this.renderStorageLayout();
         this.updateOverdueTicker();
-        this.renderStorageLayout(); // ← ADD THIS LINE
     },
 
     /**
-     * Render cards grouped by line with dividers
+     * Render Storage Layout Visualization
+     * 
+     * LEFT COLUMN (top to bottom):
+     *   1. Cushion rack (P data)
+     *   2. H [boxes] (O data, 35 boxes, stats on left)
+     *   3. I [boxes] (N data, 70 boxes, stats on left)
+     *   4. J [boxes] (M data, 70 boxes, stats on left)
+     *   5. Arrangement Area (L data)
+     *   6. Arrangement Area (K data)
+     *   7. Ready to go (J data - original)
+     *   8. Other area (I data - original)
+     * 
+     * RIGHT COLUMN (top to bottom):
+     *   1. Cushion rack (H data - original)
+     *   2. G [boxes] (G data, 35 boxes, normal layout)
+     *   3. F [boxes] (F data, 70 boxes, normal layout)
+     *   4. E [boxes] (E data, 70 boxes, normal layout)
+     *   5. D [boxes] (D data, 70 boxes, normal layout)
+     *   6. C [boxes] (C data, 70 boxes, normal layout)
+     *   7. B [boxes] (B data, 70 boxes, normal layout)
+     *   8. A [boxes] (A data, 70 boxes, normal layout)
      */
-    renderCards(cards) {
-        const container = this.elements.allShelfContainer;
-        const emptyState = this.elements.allEmptyState;
-        
-        if (!container || !emptyState) return;
+    renderStorageLayout() {
+        const container = document.getElementById('storage-warehouse-grid');
+        if (!container) return;
 
-        if (cards.length === 0) {
-            emptyState.style.display = 'block';
-            container.innerHTML = '';
-            container.appendChild(emptyState);
-            this.updateScrollIndicator();
-            return;
-        }
-
-        emptyState.style.display = 'none';
-
-        const cardsByLine = this.groupCardsByLine(cards);
+        const allCards = WIPManager.getAll();
         
-        let html = '';
-        const lines = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-        
-        lines.forEach((line, index) => {
-            const lineCards = cardsByLine[line] || [];
-            
-            if (lineCards.length > 0) {
-                if (index > 0 || (this.currentLine === 'all' && Object.keys(cardsByLine).indexOf(line) > 0)) {
-                    html += `<div class="line-divider" data-line-name="Line ${line}"></div>`;
-                } else if (this.currentLine === 'all') {
-                    html += `<div class="line-divider" data-line-name="Line ${line}"></div>`;
-                }
-                
-                html += lineCards.map(card => this.generateCardHTML(card, false)).join('');
-            }
-        });
-        
-        container.innerHTML = html;
-        
-        this.setupAddMOButtonListeners();
-        this.updateScrollIndicator();
-    },
-
-    /**
-     * Group cards by production line
-     */
-    groupCardsByLine(cards) {
-        const grouped = {};
-        
-        cards.forEach(card => {
-            const line = card.shelfCode.charAt(0);
-            if (!grouped[line]) {
-                grouped[line] = [];
-            }
-            grouped[line].push(card);
-        });
-        
-        Object.keys(grouped).forEach(line => {
-            grouped[line].sort((a, b) => {
-                const posA = parseInt(a.shelfCode.split('-')[1]);
-                const posB = parseInt(b.shelfCode.split('-')[1]);
-                return posA - posB;
-            });
-        });
-        
-        return grouped;
-    },
-
-    /**
-     * Update scroll indicator visibility for main WIP section
-     */
-    updateScrollIndicator() {
-        const wrapper = document.getElementById('allShelfContainerWrapper');
-        const indicator = document.getElementById('scrollIndicator');
-        
-        if (!wrapper || !indicator) return;
-        
-        const isScrollable = wrapper.scrollHeight > wrapper.clientHeight;
-        const isScrolledToBottom = wrapper.scrollHeight - wrapper.scrollTop <= wrapper.clientHeight + 10;
-        
-        if (isScrollable && !isScrolledToBottom) {
-            indicator.classList.remove('hidden');
-            indicator.classList.add('show');
-            wrapper.classList.add('has-scroll');
-        } else {
-            indicator.classList.add('hidden');
-            indicator.classList.remove('show');
-            wrapper.classList.remove('has-scroll');
-        }
-        
-        if (isScrolledToBottom) {
-            wrapper.classList.add('scrolled-to-bottom');
-        } else {
-            wrapper.classList.remove('scrolled-to-bottom');
-        }
-    },
-
-    /**
-     * Update hero panel scroll state
-     */
-    updateHeroPanelScrollState() {
-        const wrapper = document.getElementById('hero-panel-body-wrapper');
-        if (!wrapper) return;
-        
-        const isScrollable = wrapper.scrollHeight > wrapper.clientHeight;
-        const isScrolledToBottom = wrapper.scrollHeight - wrapper.scrollTop <= wrapper.clientHeight + 10;
-        
-        if (isScrollable && !isScrolledToBottom) {
-            wrapper.classList.add('has-scroll');
-        } else {
-            wrapper.classList.remove('has-scroll');
-        }
-        
-        if (isScrolledToBottom) {
-            wrapper.classList.add('scrolled-to-bottom');
-        } else {
-            wrapper.classList.remove('scrolled-to-bottom');
-        }
-    },
-
-    /**
-     * Generate HTML for a single card - NO DELETE BUTTONS, FIXED LAYOUT
-     */
-    generateCardHTML(card, isHeroPanel = false) {
-        const createdDate = card.createdAt ? new Date(card.createdAt) : new Date();
+        const OVERDUE_THRESHOLD = this.OVERDUE_THRESHOLD_HOURS || 72;
         const now = new Date();
-        const hoursDiff = (now - createdDate) / (1000 * 60 * 60);
-        const hoursOnShelf = Math.floor(hoursDiff);
-
-        const isOverdue = hoursDiff >= this.OVERDUE_THRESHOLD_HOURS;
-        const overdueClass = isOverdue ? 'card-overdue-alert' : '';
-        const badgeClass = isOverdue ? 'overdue-badge-alert' : '';
-        const badgeIcon = 'solar:danger-triangle-bold';
-
-        const dateObj = new Date(card.createdAt || new Date());
-        const dateStr = dateObj.toLocaleDateString('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-        const timeStr = dateObj.toLocaleTimeString('vi-VN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
+        
+        const occupancyMap = {};
+        allCards.forEach(card => {
+            occupancyMap[card.shelfCode] = {
+                moNumbers: card.moNumbers || [card.moNumber],
+                createdAt: card.createdAt,
+                isOverdue: card.createdAt 
+                    ? ((now - new Date(card.createdAt)) / (1000 * 60 * 60)) >= OVERDUE_THRESHOLD
+                    : false
+            };
         });
 
-        const moNumbers = card.moNumbers || (card.moNumber ? [card.moNumber] : []);
-        const canAddMoreMOs = moNumbers.length < WIPManager.MAX_MOS_PER_CARD;
+        const leftColumn = [
+            { type: 'cushion', dataLine: 'P' },
+            { type: 'normal', dataLine: 'O', displayLine: 'H' },
+            { type: 'normal', dataLine: 'N', displayLine: 'I' },
+            { type: 'normal', dataLine: 'M', displayLine: 'J' },
+            { type: 'arrangement', dataLine: 'L' },
+            { type: 'arrangement', dataLine: 'K' },
+            { type: 'ready', dataLine: 'J' },
+            { type: 'other', dataLine: 'I' }
+        ];
 
-        // Generate MO text list - 3 FIXED SLOTS
-        const moTextHTML = [];
-        for (let i = 0; i < 3; i++) {
-            if (i < moNumbers.length) {
-                moTextHTML.push(`
-                    <div class="flex items-center gap-1.5 mo-line" data-mo="${moNumbers[i]}">
-                        <div class="flex-1 min-w-0">
-                            <div class="text-base font-medium truncate" style="color: var(--olive-950); line-height: 1.2;" title="${moNumbers[i]}">
-                                ${moNumbers[i]}
-                            </div>
-                        </div>
-                    </div>
-                `);
-            } else {
-                moTextHTML.push(`
-                    <div class="flex items-center gap-1.5 mo-line mo-placeholder">
-                        <div class="flex-1 min-w-0">
-                            <div class="text-base font-medium" style="color: transparent; line-height: 1.2;">
-                                ···
-                            </div>
-                        </div>
-                    </div>
-                `);
-            }
+        const rightColumn = [
+            { type: 'cushion', dataLine: 'H' },
+            { type: 'normal', dataLine: 'G', displayLine: 'G' },
+            { type: 'normal', dataLine: 'F', displayLine: 'F' },
+            { type: 'normal', dataLine: 'E', displayLine: 'E' },
+            { type: 'normal', dataLine: 'D', displayLine: 'D' },
+            { type: 'normal', dataLine: 'C', displayLine: 'C' },
+            { type: 'normal', dataLine: 'B', displayLine: 'B' },
+            { type: 'normal', dataLine: 'A', displayLine: 'A' }
+        ];
+
+        let leftHTML = '';
+        let rightHTML = '';
+
+        // Render left column (label on right, stats on left for normal lines)
+        leftColumn.forEach(item => {
+            leftHTML += this.renderLineByType(item, occupancyMap, true);
+        });
+
+        // Render right column (normal layout)
+        rightColumn.forEach(item => {
+            rightHTML += this.renderLineByType(item, occupancyMap, false);
+        });
+
+        container.innerHTML = `
+            <div class="warehouse-column-left">
+                ${leftHTML}
+            </div>
+            <div class="warehouse-column-right">
+                ${rightHTML}
+            </div>
+        `;
+
+        const totalOccupied = allCards.length;
+        const totalSlots = 1120;
+        const occupancyRate = Math.round((totalOccupied / totalSlots) * 100);
+        
+        const occupancyEl = document.getElementById('storage-occupancy-rate');
+        if (occupancyEl) {
+            occupancyEl.textContent = `${occupancyRate}%`;
         }
+    },
 
+    /**
+     * Render a line based on its type
+     * @param {object} item - { type, dataLine, displayLine? }
+     * @param {object} occupancyMap
+     * @param {boolean} isLeftColumn - for normal lines: swap stats/label
+     */
+    renderLineByType(item, occupancyMap, isLeftColumn = false) {
+        const { type, dataLine, displayLine } = item;
+        
+        switch (type) {
+            case 'cushion':
+                return this.renderCushionRack(dataLine);
+            
+            case 'arrangement':
+                return this.renderArrangementArea(dataLine);
+            
+            case 'ready':
+                return this.renderReadyToGo(dataLine);
+            
+            case 'other':
+                return this.renderOtherArea(dataLine);
+            
+            case 'normal':
+                return this.renderNormalLine(dataLine, occupancyMap, displayLine, isLeftColumn);
+            
+            default:
+                return '';
+        }
+    },
+
+    /**
+     * Render Cushion Rack (no line label/tag)
+     */
+    renderCushionRack(dataLine) {
         return `
-            <div class="hero-search-card-multi group relative ${overdueClass}" 
-                data-card-id="${card.id}" 
-                data-shelf="${card.shelfCode}">
-
-                <!-- MO Section: ONE icon + 3 fixed MO slots -->
-                <div class="card-mo-section">
-                    <div class="card-icon" style="background: oklch(0.58 0.031 107.3);">
-                        <iconify-icon icon="solar:box-linear" class="text-white" width="22" stroke-width="1.5" style="display:block;"></iconify-icon>
-                    </div>
-                    
-                    <div class="card-mo-list">
-                        ${moTextHTML.join('')}
-                    </div>
+            <div class="warehouse-line-row warehouse-line-cushion warehouse-line-no-label" data-line="${dataLine}">
+                <div class="warehouse-cushion-box">
+                    <iconify-icon icon="solar:sofa-bold" width="20" style="color: rgba(59, 130, 246, 0.8)"></iconify-icon>
+                    <span class="cushion-text">Cushion rack</span>
                 </div>
-
-                <!-- Location -->
-                <div class="card-location">
-                    <div class="location-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block; flex-shrink:0;">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                        </svg>
-                    </div>
-                    <div class="location-text" title="${card.shelfCode}">
-                        ${card.shelfCode}
-                    </div>
-                </div>
-
-                <!-- Date/Time -->
-                <div class="card-datetime">
-                    <div class="datetime-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block; flex-shrink:0;">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                    </div>
-                    <div class="datetime-text" title="${card.timestamp}">
-                        ${dateStr} • ${timeStr}
-                    </div>
-                </div>
-
-                <!-- Add MO Button (only if < 3 MOs) -->
-                ${!isHeroPanel && canAddMoreMOs ? `
-                    <button class="add-mo-btn"
-                            title="Thêm MO vào thẻ này"
-                            data-add-mo-card="${card.id}">
-                        <iconify-icon icon="solar:add-circle-bold" width="14" class="inline-block mr-1"></iconify-icon>
-                        Thêm MO (${moNumbers.length}/${WIPManager.MAX_MOS_PER_CARD})
-                    </button>
-                ` : ''}
-                
-                ${isOverdue ? `
-                    <div class="overdue-badge ${badgeClass}"
-                        title="${hoursOnShelf} giờ trên kệ - QUÁ 3 NGÀY!">
-                        <iconify-icon icon="${badgeIcon}" width="12"></iconify-icon>
-                        <span>${hoursOnShelf}h</span>
-                    </div>
-                ` : ''}
             </div>
         `;
     },
 
     /**
-     * Setup event listeners for "Add MO" buttons
+     * Render Arrangement Area (no line label/tag)
      */
-    setupAddMOButtonListeners() {
-        const container = this.elements.allShelfContainer;
-        
-        if (!container) return;
-
-        if (container._addMOClickHandler) {
-            container.removeEventListener('click', container._addMOClickHandler);
-        }
-
-        const clickHandler = (event) => {
-            const button = event.target.closest('[data-add-mo-card]');
-            
-            if (button) {
-                event.stopPropagation();
-                const cardId = button.getAttribute('data-add-mo-card');
-                this.showAddMODialog(cardId);
-            }
-        };
-
-        container._addMOClickHandler = clickHandler;
-        container.addEventListener('click', clickHandler);
+    renderArrangementArea(dataLine) {
+        return `
+            <div class="warehouse-line-row warehouse-line-arrangement warehouse-line-no-label" data-line="${dataLine}">
+                <div class="warehouse-arrangement-box">
+                    <iconify-icon icon="solar:layers-minimalistic-bold" width="20" style="color: rgba(251, 191, 36, 0.8)"></iconify-icon>
+                    <span class="arrangement-text">Arrangement Area</span>
+                </div>
+            </div>
+        `;
     },
 
     /**
-     * Show dialog to add MO to existing card
+     * Render Ready to go (no line label/tag)
      */
-    showAddMODialog(cardId) {
-        const card = WIPManager.cards.find(c => c.id === cardId);
-        if (!card) {
-            console.error('Card not found:', cardId);
+    renderReadyToGo(dataLine) {
+        return `
+            <div class="warehouse-line-row warehouse-line-ready warehouse-line-no-label" data-line="${dataLine}">
+                <div class="warehouse-ready-box">
+                    <iconify-icon icon="solar:check-circle-bold" width="20" style="color: rgba(124, 156, 90, 0.8)"></iconify-icon>
+                    <span class="ready-text">Ready to go</span>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Render Other area (no line label/tag)
+     */
+    renderOtherArea(dataLine) {
+        return `
+            <div class="warehouse-line-row warehouse-line-other warehouse-line-no-label" data-line="${dataLine}">
+                <div class="warehouse-other-box">
+                    <iconify-icon icon="solar:widget-5-bold" width="20" style="color: rgba(124, 156, 90, 0.8)"></iconify-icon>
+                    <span class="other-text">Other area</span>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Render normal storage line with boxes
+     * @param {string} dataLine - actual line for shelf codes
+     * @param {object} occupancyMap
+     * @param {string} displayLine - label shown in UI
+     * @param {boolean} isLeftColumn - if true, stats left, label right
+     */
+    renderNormalLine(dataLine, occupancyMap, displayLine, isLeftColumn = false) {
+        const lineColor = ShelfLocations.getAreaColor(`${dataLine}-01`);
+        
+        const isSingleRow = (dataLine === 'G' || dataLine === 'O');
+        const maxPosition = isSingleRow ? 35 : 70;
+        
+        let occupiedCount = 0;
+        for (let pos = 1; pos <= maxPosition; pos++) {
+            const code = `${dataLine}-${pos.toString().padStart(2, '0')}`;
+            if (occupancyMap[code]) occupiedCount++;
+        }
+        
+        let slotsHTML = '';
+        for (let pos = 1; pos <= maxPosition; pos++) {
+            const code = `${dataLine}-${pos.toString().padStart(2, '0')}`;
+            const occupied = occupancyMap[code];
+            
+            let slotClass = 'warehouse-slot empty';
+            let tooltip = `${code} - Trống`;
+            
+            if (occupied) {
+                if (occupied.isOverdue) {
+                    slotClass = 'warehouse-slot overdue';
+                    tooltip = `${code} - QUÁ HẠN\\nMO: ${occupied.moNumbers.join(', ')}`;
+                } else {
+                    slotClass = 'warehouse-slot occupied';
+                    tooltip = `${code} - Đã dùng\\nMO: ${occupied.moNumbers.join(', ')}`;
+                }
+            }
+            
+            slotsHTML += `
+                <div class="${slotClass}" 
+                     data-shelf="${code}" 
+                     data-tooltip="${tooltip}"
+                     onclick="UIController.handleStorageSlotClick('${code}')">
+                </div>
+            `;
+        }
+        
+        const containerClass = isSingleRow ? 'warehouse-slots-container-single' : 'warehouse-slots-container';
+        const rowBaseClass = isSingleRow ? 'warehouse-line-row warehouse-line-single-row' : 'warehouse-line-row';
+        
+        // LEFT COLUMN: stats left, content middle, label right
+        if (isLeftColumn) {
+            return `
+                <div class="${rowBaseClass} warehouse-line-right" data-line="${dataLine}">
+                    <div class="warehouse-stats-badge">
+                        ${occupiedCount}/${maxPosition}
+                    </div>
+                    <div class="${containerClass}">
+                        ${slotsHTML}
+                    </div>
+                    <div class="warehouse-line-label">
+                        <span>${displayLine}</span>
+                        <iconify-icon icon="solar:box-minimalistic-bold" width="16" style="color: ${lineColor}"></iconify-icon>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // RIGHT COLUMN: label left, content middle, stats right
+        return `
+            <div class="${rowBaseClass}" data-line="${dataLine}">
+                <div class="warehouse-line-label">
+                    <iconify-icon icon="solar:box-minimalistic-bold" width="16" style="color: ${lineColor}"></iconify-icon>
+                    <span>${displayLine}</span>
+                </div>
+                <div class="${containerClass}">
+                    ${slotsHTML}
+                </div>
+                <div class="warehouse-stats-badge">
+                    ${occupiedCount}/${maxPosition}
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Handle storage slot click
+     */
+    handleStorageSlotClick(shelfCode) {
+        const cards = WIPManager.getByShelf(shelfCode);
+        
+        if (cards.length === 0) {
+            BarcodeScanner.showScanFeedback(`Position ${shelfCode} is empty`, 'info');
+            return;
+        }
+        
+        this.updateHeroPanel(cards);
+        BarcodeScanner.showScanFeedback(`✓ Showing ${cards.length} card(s) from ${shelfCode}`, 'success');
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    /**
+     * Handle search
+     */
+    handleSearch() {
+        const searchTerm = this.elements.searchMOInput.value.trim().toUpperCase();
+        
+        if (!searchTerm) {
+            BarcodeScanner.showScanFeedback('Vui lòng nhập mã MO hoặc vị trí để tìm kiếm!', 'warning');
             return;
         }
 
-        const moNumbers = card.moNumbers || (card.moNumber ? [card.moNumber] : []);
-        const currentMOs = moNumbers.join(', ');
+        const foundCards = WIPManager.search(searchTerm);
 
-        const moNumber = prompt(
-            `Thêm MO vào vị trí ${card.shelfCode}\n\nHiện tại: ${currentMOs}\n\nNhập mã MO mới (${moNumbers.length}/${WIPManager.MAX_MOS_PER_CARD}):`
-        );
-
-        if (!moNumber || !moNumber.trim()) return;
-
-        const success = WIPManager.addMOToCard(cardId, moNumber.trim());
-
-        if (success) {
-            this.render();
-            
-            // Update dashboard if Excel data is loaded
-            if (typeof ExcelParser !== 'undefined' && ExcelParser.scheduledMOs) {
-                this.updateMODashboard();
-            }
-            
-            BarcodeScanner.playSuccess();
-            BarcodeScanner.showScanFeedback(`✓ Đã thêm MO "${moNumber.trim()}" vào ${card.shelfCode}`, 'success');
+        if (foundCards.length === 0) {
+            BarcodeScanner.showScanFeedback(`Không tìm thấy sản phẩm với mã "${searchTerm}"`, 'error');
         } else {
-            BarcodeScanner.playError();
+            this.updateHeroPanel(foundCards);
             
-            if (WIPManager.isDuplicateMO(moNumber.trim())) {
-                const existingCard = WIPManager.getByMO(moNumber.trim());
-                BarcodeScanner.showCardNotification(
-                    'error',
-                    'Lỗi trùng mã MO',
-                    `<span class="notification-card-message-strong">Vị trí: ${existingCard.shelfCode}</span>`,
-                    `MO: ${moNumber.trim()}`
-                );
-            } else {
-                BarcodeScanner.showScanFeedback('Không thể thêm MO', 'error');
-            }
-        }
-    },
-
-    /**
-     * Update hero panel display
-     */
-    updateHeroPanelDisplay() {
-        if (!this.elements.heroPanelCards) return;
-
-        if (this.heroPanelCards.length === 0) {
-            this.clearHeroPanel();
-            return;
-        }
-
-        const cardsHTML = this.heroPanelCards.map(card => this.generateCardHTML(card, true)).join('');
-        this.elements.heroPanelCards.innerHTML = cardsHTML;
-
-        if (this.elements.heroPanelCount) {
-            this.elements.heroPanelCount.textContent = this.heroPanelCards.length;
+            let totalMOs = 0;
+            foundCards.forEach(card => {
+                const moNumbers = card.moNumbers || [card.moNumber];
+                totalMOs += moNumbers.length;
+            });
+            
+            BarcodeScanner.showScanFeedback(
+                `✓ Tìm thấy ${totalMOs} MO trong ${foundCards.length} vị trí`,
+                'success'
+            );
         }
         
-        this.elements.heroPanelEmpty.classList.add('hidden');
-        this.elements.heroPanelCards.classList.remove('hidden');
-        this.elements.heroPanelFooter.classList.remove('hidden');
-        this.elements.heroClearBtn.classList.remove('hidden');
-        
-        setTimeout(() => {
-            this.updateHeroPanelScrollState();
-        }, 100);
+        this.elements.searchMOInput.value = '';
     },
 
     /**
@@ -883,6 +790,138 @@ const UIController = {
     },
 
     /**
+     * Update hero panel display
+     */
+    updateHeroPanelDisplay() {
+        if (!this.elements.heroPanelCards) return;
+
+        if (this.heroPanelCards.length === 0) {
+            this.clearHeroPanel();
+            return;
+        }
+
+        const cardsHTML = this.heroPanelCards.map(card => this.generateCardHTML(card, true)).join('');
+        this.elements.heroPanelCards.innerHTML = cardsHTML;
+
+        if (this.elements.heroPanelCount) {
+            this.elements.heroPanelCount.textContent = this.heroPanelCards.length;
+        }
+        
+        this.elements.heroPanelEmpty.classList.add('hidden');
+        this.elements.heroPanelCards.classList.remove('hidden');
+        this.elements.heroPanelFooter.classList.remove('hidden');
+        this.elements.heroClearBtn.classList.remove('hidden');
+        
+        setTimeout(() => {
+            this.updateHeroPanelScrollState();
+        }, 100);
+    },
+
+    /**
+     * Generate card HTML for hero panel
+     */
+    generateCardHTML(card, isHeroPanel = false) {
+        const createdDate = card.createdAt ? new Date(card.createdAt) : new Date();
+        const now = new Date();
+        const hoursDiff = (now - createdDate) / (1000 * 60 * 60);
+        const hoursOnShelf = Math.floor(hoursDiff);
+
+        const isOverdue = hoursDiff >= this.OVERDUE_THRESHOLD_HOURS;
+        const overdueClass = isOverdue ? 'card-overdue-alert' : '';
+        const badgeClass = isOverdue ? 'overdue-badge-alert' : '';
+
+        const dateObj = new Date(card.createdAt || new Date());
+        const dateStr = dateObj.toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        const timeStr = dateObj.toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+
+        const moNumbers = card.moNumbers || (card.moNumber ? [card.moNumber] : []);
+
+        const moTextHTML = [];
+        for (let i = 0; i < 3; i++) {
+            if (i < moNumbers.length) {
+                moTextHTML.push(`
+                    <div class="flex items-center gap-1.5 mo-line" data-mo="${moNumbers[i]}">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-base font-medium truncate" style="color: var(--olive-950); line-height: 1.2;" title="${moNumbers[i]}">
+                                ${moNumbers[i]}
+                            </div>
+                        </div>
+                    </div>
+                `);
+            } else {
+                moTextHTML.push(`
+                    <div class="flex items-center gap-1.5 mo-line mo-placeholder">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-base font-medium" style="color: transparent; line-height: 1.2;">
+                                ···
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+        }
+
+        return `
+            <div class="hero-search-card-multi group relative ${overdueClass}" 
+                data-card-id="${card.id}" 
+                data-shelf="${card.shelfCode}">
+
+                <div class="card-mo-section">
+                    <div class="card-icon" style="background: transparent;">
+                        <iconify-icon icon="solar:box-linear" style="color: #000000;" width="22" stroke-width="1.5"></iconify-icon>
+                    </div>
+                    
+                    <div class="card-mo-list">
+                        ${moTextHTML.join('')}
+                    </div>
+                </div>
+
+                <div class="card-location">
+                    <div class="location-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                    </div>
+                    <div class="location-text" title="${card.shelfCode}">
+                        ${card.shelfCode}
+                    </div>
+                </div>
+
+                <div class="card-datetime">
+                    <div class="datetime-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div class="datetime-text" title="${card.timestamp}">
+                        ${dateStr} • ${timeStr}
+                    </div>
+                </div>
+                
+                ${isOverdue ? `
+                    <div class="overdue-badge ${badgeClass}"
+                        title="${hoursOnShelf} giờ trên kệ - QUÁ 3 NGÀY!">
+                        <iconify-icon icon="solar:danger-triangle-bold" width="12"></iconify-icon>
+                        <span>${hoursOnShelf}h</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    },
+
+    /**
      * Clear hero panel
      */
     clearHeroPanel() {
@@ -899,12 +938,11 @@ const UIController = {
     },
 
     /**
-     * Remove hero panel MOs from shelves (individual MO removal, not entire cards)
+     * Remove hero panel MOs from shelves
      */
     removeHeroPanelFromShelves() {
         if (this.heroPanelCards.length === 0) return;
 
-        // Build list of MOs to remove (with their parent cards)
         const moRemovalList = [];
         
         this.heroPanelCards.forEach(card => {
@@ -932,7 +970,6 @@ const UIController = {
         let removedCount = 0;
         let deletedCards = 0;
 
-        // Remove each MO individually
         moRemovalList.forEach(item => {
             const card = WIPManager.cards.find(c => c.id === item.cardId);
             
@@ -941,7 +978,6 @@ const UIController = {
                 return;
             }
 
-            // Ensure moNumbers array exists
             if (!card.moNumbers) {
                 card.moNumbers = card.moNumber ? [card.moNumber] : [];
             }
@@ -953,11 +989,9 @@ const UIController = {
                 return;
             }
 
-            // Remove the MO
             card.moNumbers.splice(moIndex, 1);
             removedCount++;
 
-            // If card is now empty (no MOs left), delete the entire card
             if (card.moNumbers.length === 0) {
                 const removeTime = new Date();
                 const addTime = new Date(card.createdAt);
@@ -972,7 +1006,6 @@ const UIController = {
                 
                 console.log(`✓ Removed last MO from card, deleted: ${card.shelfCode}`);
             } else {
-                // Card still has MOs, just log the MO removal
                 if (typeof LogManager !== 'undefined') {
                     LogManager.writeLog('REMOVE_MO', card, null, item.moNumber);
                 }
@@ -983,7 +1016,6 @@ const UIController = {
 
         WIPManager.saveToStorage();
 
-        // Show success message
         let message = `✓ Đã lấy ${removedCount} MO khỏi kệ`;
         if (deletedCards > 0) {
             message += ` (${deletedCards} thẻ đã xóa do hết MO)`;
@@ -994,44 +1026,9 @@ const UIController = {
         this.clearHeroPanel();
         this.render();
         
-        // Update dashboard if Excel data is loaded
         if (typeof ExcelParser !== 'undefined' && ExcelParser.scheduledMOs) {
             this.updateMODashboard();
         }
-    },
-
-    /**
-     * Handle search
-     */
-    handleSearch() {
-        const searchTerm = this.elements.searchMOInput.value.trim().toUpperCase();
-        
-        if (!searchTerm) {
-            BarcodeScanner.showScanFeedback('Vui lòng nhập mã MO hoặc vị trí để tìm kiếm!', 'warning');
-            return;
-        }
-
-        const foundCards = WIPManager.search(searchTerm);
-
-        if (foundCards.length === 0) {
-            BarcodeScanner.showScanFeedback(`Không tìm thấy sản phẩm với mã "${searchTerm}"`, 'error');
-        } else {
-            this.updateHeroPanel(foundCards);
-            
-            // Count total MOs found
-            let totalMOs = 0;
-            foundCards.forEach(card => {
-                const moNumbers = card.moNumbers || [card.moNumber];
-                totalMOs += moNumbers.length;
-            });
-            
-            BarcodeScanner.showScanFeedback(
-                `✓ Tìm thấy ${totalMOs} MO trong ${foundCards.length} vị trí`,
-                'success'
-            );
-        }
-        
-        this.elements.searchMOInput.value = '';
     },
 
     /**
@@ -1100,119 +1097,7 @@ const UIController = {
     },
 
     /**
-     * Update total count
-     */
-    updateTotalCount() {
-        const count = WIPManager.getCount();
-        if (this.elements.totalCards) {
-            this.elements.totalCards.textContent = count;
-        }
-    },
-
-    /**
-     * Update navbar delivery schedule dropdown
-     */
-    updateNavbarSchedule(analysis) {
-        if (!analysis) return;
-
-        // Show/hide indicator
-        const indicator = document.getElementById('delivery-schedule-indicator');
-        if (indicator) {
-            indicator.classList.remove('hidden');
-        }
-
-        // Update badges
-        const urgentBadge = document.getElementById('urgent-badge');
-        const upcomingBadge = document.getElementById('upcoming-badge');
-
-        if (analysis.urgent.length > 0 && urgentBadge) {
-            urgentBadge.classList.remove('hidden');
-            urgentBadge.textContent = analysis.urgent.length;
-        } else if (urgentBadge) {
-            urgentBadge.classList.add('hidden');
-        }
-
-        if (analysis.upcoming.length > 0 && upcomingBadge) {
-            upcomingBadge.classList.remove('hidden');
-            upcomingBadge.textContent = analysis.upcoming.length;
-        } else if (upcomingBadge) {
-            upcomingBadge.classList.add('hidden');
-        }
-
-        // Update dropdown counts
-        const inWIPCount = document.getElementById('dropdown-in-wip-count');
-        const missingCount = document.getElementById('dropdown-missing-count');
-
-        if (inWIPCount) inWIPCount.textContent = analysis.inWIP.length;
-        if (missingCount) missingCount.textContent = analysis.missing.length;
-
-        // Update dropdown lists
-        const urgentSection = document.getElementById('dropdown-urgent-section');
-        const urgentList = document.getElementById('dropdown-urgent-list');
-
-        if (analysis.urgent.length > 0 && urgentSection && urgentList) {
-            urgentSection.classList.remove('hidden');
-            urgentList.innerHTML = analysis.urgent.map(delivery => `
-                <div class="flex items-center justify-between py-2 border-b" style="border-color: rgba(12,12,9,0.06)">
-                    <span class="text-sm font-medium" style="color: var(--olive-950)">${delivery.moNumber}</span>
-                    <span class="text-xs font-semibold" style="color: #dc2626">${delivery.time}</span>
-                </div>
-            `).join('');
-        } else if (urgentSection) {
-            urgentSection.classList.add('hidden');
-        }
-
-        const upcomingSection = document.getElementById('dropdown-upcoming-section');
-        const upcomingList = document.getElementById('dropdown-upcoming-list');
-        const upcomingTitle = document.getElementById('dropdown-upcoming-title');
-
-        if (analysis.upcoming.length > 0 && upcomingSection && upcomingList) {
-            upcomingSection.classList.remove('hidden');
-            
-            const now = new Date();
-            const currentHour = now.getHours();
-            if (upcomingTitle) {
-                upcomingTitle.textContent = `⏰ Next Hour (${currentHour}:00 - ${currentHour + 1}:00)`;
-            }
-
-            upcomingList.innerHTML = analysis.upcoming.map(delivery => `
-                <div class="flex items-center justify-between py-2 border-b" style="border-color: rgba(12,12,9,0.06)">
-                    <span class="text-sm font-medium" style="color: var(--olive-950)">${delivery.moNumber}</span>
-                    <span class="text-xs font-semibold" style="color: #f59e0b">${delivery.time}</span>
-                </div>
-            `).join('');
-        } else if (upcomingSection) {
-            upcomingSection.classList.add('hidden');
-        }
-
-        const missingSection = document.getElementById('dropdown-missing-section');
-        const missingList = document.getElementById('dropdown-missing-list');
-
-        if (analysis.missing.length > 0 && missingSection && missingList) {
-            missingSection.classList.remove('hidden');
-            missingList.innerHTML = analysis.missing.slice(0, 30).map(delivery => `
-                <div class="flex items-center justify-between py-1.5 text-xs">
-                    <span style="color: var(--olive-700)">${delivery.moNumber}</span>
-                    <span style="color: var(--olive-400)">${delivery.time || 'N/A'}</span>
-                </div>
-            `).join('');
-
-            if (analysis.missing.length > 30) {
-                missingList.innerHTML += `<div class="text-xs text-center py-2" style="color: var(--olive-400)">+ ${analysis.missing.length - 30} more...</div>`;
-            }
-        } else if (missingSection) {
-            missingSection.classList.add('hidden');
-        }
-
-        // Hide empty state
-        const emptyState = document.getElementById('dropdown-empty');
-        if (emptyState) {
-            emptyState.classList.add('hidden');
-        }
-    },
-
-    /**
-     * Update overdue ticker (3+ days cards)
+     * Update overdue ticker
      */
     updateOverdueTicker() {
         const tickerTrack = document.getElementById('overdue-ticker-track');
@@ -1287,469 +1172,5 @@ const UIController = {
                 }
             `;
         });
-    },
-
-    /**
-     * Render Storage Layout Visualization
-     */
-    renderStorageLayout() {
-        const container = document.getElementById('storage-layout-container');
-        if (!container) return;
-
-        const lines = ShelfLocations.getAllLines();
-        const allCards = WIPManager.getAll();
-        
-        // Get overdue threshold
-        const OVERDUE_THRESHOLD = UIController.OVERDUE_THRESHOLD_HOURS || 72;
-        const now = new Date();
-        
-        // Build occupancy map
-        const occupancyMap = {};
-        allCards.forEach(card => {
-            occupancyMap[card.shelfCode] = {
-                moNumbers: card.moNumbers || [card.moNumber],
-                createdAt: card.createdAt,
-                isOverdue: card.createdAt 
-                    ? ((now - new Date(card.createdAt)) / (1000 * 60 * 60)) >= OVERDUE_THRESHOLD
-                    : false
-            };
-        });
-
-        // Generate HTML for all lines
-        let html = '';
-        
-        lines.forEach(line => {
-            const lineColor = ShelfLocations.getAreaColor(`${line}-01`);
-            
-            // Count occupied slots for this line
-            let occupiedCount = 0;
-            for (let pos = 1; pos <= 70; pos++) {
-                const code = `${line}-${pos.toString().padStart(2, '0')}`;
-                if (occupancyMap[code]) occupiedCount++;
-            }
-            
-            const occupancyPercent = Math.round((occupiedCount / 70) * 100);
-            
-            html += `
-                <div class="storage-line" id="storage-line-${line}" data-line="${line}">
-                    <!-- Line Header -->
-                    <div class="storage-line-header">
-                        <div class="storage-line-title" style="color: ${lineColor}">
-                            <iconify-icon icon="solar:box-minimalistic-bold" width="20" class="inline-block mr-2"></iconify-icon>
-                            Line ${line}
-                        </div>
-                        <div class="storage-line-stats">
-                            <span>${occupiedCount}/70 occupied</span>
-                            <span>•</span>
-                            <span>${occupancyPercent}% full</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Storage Slots Grid (35x2) -->
-                    <div class="storage-slots-grid">
-            `;
-            
-            // Generate 70 slots (2 rows x 35 columns)
-            for (let pos = 1; pos <= 70; pos++) {
-                const code = `${line}-${pos.toString().padStart(2, '0')}`;
-                const occupied = occupancyMap[code];
-                
-                let slotClass = 'storage-slot empty';
-                let tooltip = `${code} - Empty`;
-                let moCount = '';
-                
-                if (occupied) {
-                    if (occupied.isOverdue) {
-                        slotClass = 'storage-slot overdue';
-                        tooltip = `${code} - OVERDUE (3+ days)\\nMO: ${occupied.moNumbers.join(', ')}`;
-                    } else {
-                        slotClass = 'storage-slot occupied';
-                        tooltip = `${code} - Occupied\\nMO: ${occupied.moNumbers.join(', ')}`;
-                    }
-                    
-                    // Show MO count if multiple
-                    if (occupied.moNumbers.length > 1) {
-                        moCount = `<span class="storage-slot-mo-count">${occupied.moNumbers.length}</span>`;
-                    }
-                }
-                
-                html += `
-                    <div class="${slotClass}" 
-                        data-shelf="${code}" 
-                        data-tooltip="${tooltip}"
-                        onclick="UIController.handleStorageSlotClick('${code}')">
-                        <span class="storage-slot-label">${pos.toString().padStart(2, '0')}</span>
-                        ${moCount}
-                    </div>
-                `;
-            }
-            
-            html += `
-                    </div>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-        
-        // Update occupancy rate
-        const totalOccupied = allCards.length;
-        const totalSlots = 700;
-        const occupancyRate = Math.round((totalOccupied / totalSlots) * 100);
-        
-        const occupancyEl = document.getElementById('storage-occupancy-rate');
-        if (occupancyEl) {
-            occupancyEl.textContent = `${occupancyRate}%`;
-        }
-        
-        // Setup scroll indicator
-        this.updateStorageScrollIndicator();
-    },
-
-    /**
-     * Handle storage slot click
-     */
-    handleStorageSlotClick(shelfCode) {
-        const cards = WIPManager.getByShelf(shelfCode);
-        
-        if (cards.length === 0) {
-            BarcodeScanner.showScanFeedback(`Position ${shelfCode} is empty`, 'info');
-            return;
-        }
-        
-        // Show card in hero panel
-        this.updateHeroPanel(cards);
-        BarcodeScanner.showScanFeedback(`✓ Showing ${cards.length} card(s) from ${shelfCode}`, 'success');
-        
-        // Scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    },
-
-    /**
-     * Scroll to specific storage line
-     */
-    scrollToStorageLine(line) {
-        // Update tab active state
-        document.querySelectorAll('.storage-line-tab').forEach(btn => {
-            const btnLine = btn.getAttribute('data-storage-line');
-            if (btnLine === line) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        
-        if (line === 'all') {
-            // Scroll to top of container
-            const container = document.getElementById('storage-layout-container');
-            if (container) {
-                container.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-            return;
-        }
-        
-        // Scroll to specific line
-        const lineElement = document.getElementById(`storage-line-${line}`);
-        if (lineElement) {
-            lineElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    },
-
-    /**
-     * Update storage scroll indicator
-     */
-    updateStorageScrollIndicator() {
-        const container = document.getElementById('storage-layout-container');
-        const indicator = document.getElementById('storage-scroll-indicator');
-        
-        if (!container || !indicator) return;
-        
-        const isScrollable = container.scrollHeight > container.clientHeight;
-        const isScrolledToBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
-        
-        if (isScrollable && !isScrolledToBottom) {
-            indicator.classList.remove('hidden');
-            indicator.classList.add('show');
-            container.classList.add('has-scroll');
-        } else {
-            indicator.classList.add('hidden');
-            indicator.classList.remove('show');
-            container.classList.remove('has-scroll');
-        }
-        
-        if (isScrolledToBottom) {
-            container.classList.add('scrolled-to-bottom');
-        } else {
-            container.classList.remove('scrolled-to-bottom');
-        }
-    },
-
-    /**
-     * Render Storage Layout - NEW 2-COLUMN WAREHOUSE VIEW
-     * RIGHT: A-H (bottom to top), LEFT: I-P (bottom to top)
-     */
-    renderStorageLayout() {
-        const container = document.getElementById('storage-warehouse-grid');
-        if (!container) return;
-
-        const allCards = WIPManager.getAll();
-        
-        // Get overdue threshold
-        const OVERDUE_THRESHOLD = this.OVERDUE_THRESHOLD_HOURS || 72;
-        const now = new Date();
-        
-        // Build occupancy map
-        const occupancyMap = {};
-        allCards.forEach(card => {
-            occupancyMap[card.shelfCode] = {
-                moNumbers: card.moNumbers || [card.moNumber],
-                createdAt: card.createdAt,
-                isOverdue: card.createdAt 
-                    ? ((now - new Date(card.createdAt)) / (1000 * 60 * 60)) >= OVERDUE_THRESHOLD
-                    : false
-            };
-        });
-
-        // Define line arrangement - CORRECTED
-        // LEFT COLUMN: P, O, N, M, L, K, J, I (top to bottom)
-        // RIGHT COLUMN: H, G, F, E, D, C, B, A (top to bottom)
-        const leftColumn = ['P', 'O', 'N', 'M', 'L', 'K', 'J', 'I'];
-        const rightColumn = ['H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'];
-
-        // Generate HTML for both columns
-        let leftHTML = '';
-        let rightHTML = '';
-
-        // LEFT COLUMN
-        leftColumn.forEach(line => {
-            leftHTML += this.renderWarehouseLine(line, occupancyMap);
-        });
-
-        // RIGHT COLUMN
-        rightColumn.forEach(line => {
-            rightHTML += this.renderWarehouseLine(line, occupancyMap);
-        });
-
-        container.innerHTML = `
-            <div class="warehouse-column-left">
-                ${leftHTML}
-            </div>
-            <div class="warehouse-column-right">
-                ${rightHTML}
-            </div>
-        `;
-
-        // Update occupancy rate
-        const totalOccupied = allCards.length;
-        const totalSlots = 1120; // 16 lines × 70 positions
-        const occupancyRate = Math.round((totalOccupied / totalSlots) * 100);
-        
-        const occupancyEl = document.getElementById('storage-occupancy-rate');
-        if (occupancyEl) {
-            occupancyEl.textContent = `${occupancyRate}%`;
-        }
-    },
-
-    /**
-     * Render a single warehouse line with small squares
-     * SPECIAL: Line I = "Other area" box (green, no label, no stats)
-     * SPECIAL: Line J = "Ready to go" box (green, no label, no stats)
-     * SPECIAL: Line K & L = "Arrangement Area" boxes (amber, no label, no stats)
-     * SPECIAL: Line G & O = Single row (35 boxes only)
-     * RIGHT COLUMN: P, O, N, M have labels on the right side
-     */
-    renderWarehouseLine(line, occupancyMap) {
-        const lineColor = ShelfLocations.getAreaColor(`${line}-01`);
-        
-        // Check if this is a right-side line (P, O, N, M in right column)
-        const isRightSide = ['P', 'O', 'N', 'M'].includes(line);
-        
-        // SPECIAL CASE: Line I - "Other area" box (SAME AS READY TO GO)
-        if (line === 'I') {
-            return `
-                <div class="warehouse-line-row warehouse-line-other warehouse-line-no-label" data-line="${line}">
-                    <div class="warehouse-other-box">
-                        <iconify-icon icon="solar:widget-5-bold" width="24" style="color: rgba(124, 156, 90, 0.8)"></iconify-icon>
-                        <span class="other-text">Other area</span>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // SPECIAL CASE: Line J - "Ready to go" box (NO LABEL, NO STATS)
-        if (line === 'J') {
-            return `
-                <div class="warehouse-line-row warehouse-line-ready warehouse-line-no-label" data-line="${line}">
-                    <div class="warehouse-ready-box">
-                        <iconify-icon icon="solar:check-circle-bold" width="24" style="color: rgba(124, 156, 90, 0.8)"></iconify-icon>
-                        <span class="ready-text">Ready to go</span>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // SPECIAL CASE: Line K & L - "Arrangement Area" boxes (AMBER COLOR, NO LABEL, NO STATS)
-        if (line === 'K' || line === 'L') {
-            return `
-                <div class="warehouse-line-row warehouse-line-arrangement warehouse-line-no-label" data-line="${line}">
-                    <div class="warehouse-arrangement-box">
-                        <iconify-icon icon="solar:layers-minimalistic-bold" width="24" style="color: rgba(251, 191, 36, 0.8)"></iconify-icon>
-                        <span class="arrangement-text">Arrangement Area</span>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // SPECIAL CASE: Line G & O - Single row (35 boxes only)
-        if (line === 'G' || line === 'O') {
-            return this.renderSingleRowLine(line, occupancyMap, isRightSide);
-        }
-        
-        // NORMAL RENDERING for all other lines (A-H, M-P)
-        // Count occupied slots
-        let occupiedCount = 0;
-        for (let pos = 1; pos <= 70; pos++) {
-            const code = `${line}-${pos.toString().padStart(2, '0')}`;
-            if (occupancyMap[code]) occupiedCount++;
-        }
-        
-        // Generate small rectangles for all 70 positions (2 rows)
-        let slotsHTML = '';
-        for (let pos = 1; pos <= 70; pos++) {
-            const code = `${line}-${pos.toString().padStart(2, '0')}`;
-            const occupied = occupancyMap[code];
-            
-            let slotClass = 'warehouse-slot empty';
-            let tooltip = `${code} - Trống`;
-            
-            if (occupied) {
-                if (occupied.isOverdue) {
-                    slotClass = 'warehouse-slot overdue';
-                    tooltip = `${code} - QUÁ HẠN\\nMO: ${occupied.moNumbers.join(', ')}`;
-                } else {
-                    slotClass = 'warehouse-slot occupied';
-                    tooltip = `${code} - Đã dùng\\nMO: ${occupied.moNumbers.join(', ')}`;
-                }
-            }
-            
-            slotsHTML += `
-                <div class="${slotClass}" 
-                    data-shelf="${code}" 
-                    data-tooltip="${tooltip}"
-                    onclick="UIController.handleStorageSlotClick('${code}')">
-                </div>
-            `;
-        }
-        
-        // RIGHT SIDE LAYOUT (P, O, N, M): Stats on left, content in middle, label on right
-        if (isRightSide) {
-            return `
-                <div class="warehouse-line-row warehouse-line-right" data-line="${line}">
-                    <div class="warehouse-stats-badge">
-                        ${occupiedCount}/70
-                    </div>
-                    <div class="warehouse-slots-container">
-                        ${slotsHTML}
-                    </div>
-                    <div class="warehouse-line-label">
-                        <span>${line}</span>
-                        <iconify-icon icon="solar:box-minimalistic-bold" width="16" style="color: ${lineColor}"></iconify-icon>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // NORMAL LAYOUT (left side): Label on left, content in middle, stats on right
-        return `
-            <div class="warehouse-line-row" data-line="${line}">
-                <div class="warehouse-line-label">
-                    <iconify-icon icon="solar:box-minimalistic-bold" width="16" style="color: ${lineColor}"></iconify-icon>
-                    <span>${line}</span>
-                </div>
-                <div class="warehouse-slots-container">
-                    ${slotsHTML}
-                </div>
-                <div class="warehouse-stats-badge">
-                    ${occupiedCount}/70
-                </div>
-            </div>
-        `;
-    },
-
-    /**
-     * Render a line with single row (35 boxes only) - for Lines G & O
-     */
-    renderSingleRowLine(line, occupancyMap, isRightSide = false) {
-        const lineColor = ShelfLocations.getAreaColor(`${line}-01`);
-        
-        // Count occupied slots (only first 35)
-        let occupiedCount = 0;
-        for (let pos = 1; pos <= 35; pos++) {
-            const code = `${line}-${pos.toString().padStart(2, '0')}`;
-            if (occupancyMap[code]) occupiedCount++;
-        }
-        
-        // Generate small rectangles for 35 positions only (1 row)
-        let slotsHTML = '';
-        for (let pos = 1; pos <= 35; pos++) {
-            const code = `${line}-${pos.toString().padStart(2, '0')}`;
-            const occupied = occupancyMap[code];
-            
-            let slotClass = 'warehouse-slot empty';
-            let tooltip = `${code} - Trống`;
-            
-            if (occupied) {
-                if (occupied.isOverdue) {
-                    slotClass = 'warehouse-slot overdue';
-                    tooltip = `${code} - QUÁ HẠN\\nMO: ${occupied.moNumbers.join(', ')}`;
-                } else {
-                    slotClass = 'warehouse-slot occupied';
-                    tooltip = `${code} - Đã dùng\\nMO: ${occupied.moNumbers.join(', ')}`;
-                }
-            }
-            
-            slotsHTML += `
-                <div class="${slotClass}" 
-                    data-shelf="${code}" 
-                    data-tooltip="${tooltip}"
-                    onclick="UIController.handleStorageSlotClick('${code}')">
-                </div>
-            `;
-        }
-        
-        // RIGHT SIDE LAYOUT (Line O): Stats on left, content in middle, label on right
-        if (isRightSide) {
-            return `
-                <div class="warehouse-line-row warehouse-line-single-row warehouse-line-right" data-line="${line}">
-                    <div class="warehouse-stats-badge">
-                        ${occupiedCount}/35
-                    </div>
-                    <div class="warehouse-slots-container-single">
-                        ${slotsHTML}
-                    </div>
-                    <div class="warehouse-line-label">
-                        <span>${line}</span>
-                        <iconify-icon icon="solar:box-minimalistic-bold" width="16" style="color: ${lineColor}"></iconify-icon>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // NORMAL LAYOUT (Line G): Label on left, content in middle, stats on right
-        return `
-            <div class="warehouse-line-row warehouse-line-single-row" data-line="${line}">
-                <div class="warehouse-line-label">
-                    <iconify-icon icon="solar:box-minimalistic-bold" width="16" style="color: ${lineColor}"></iconify-icon>
-                    <span>${line}</span>
-                </div>
-                <div class="warehouse-slots-container-single">
-                    ${slotsHTML}
-                </div>
-                <div class="warehouse-stats-badge">
-                    ${occupiedCount}/35
-                </div>
-            </div>
-        `;
     }
-
 };
