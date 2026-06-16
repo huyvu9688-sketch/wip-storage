@@ -1,451 +1,346 @@
 /**
- * Main Application Entry Point
- * Initializes all modules in correct order
+ * Barcode Scanner Module
+ * USB/Hardware barcode scanner only (no camera)
+ * AUTO SHELF ASSIGNMENT - Operator only scans MO
  */
 
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('WIP Control System Initializing...');
-    console.log('═══════════════════════════════════════════════════════');
+const BarcodeScanner = {
+    config: {
+        scanTimeout: 100,
+        successBeep: true,
+        errorBeep: true,
+        continuousMode: false,
+        debugMode: false
+    },
 
-    try {
-        // Step 1: Initialize Shelf Locations (already auto-initialized)
-        console.log('✓ Shelf Locations initialized (700 locations: A-01 to J-70)');
+    state: {
+        scanBuffer: '',
+        scanTimer: null,
+        lastScanTime: 0
+    },
 
-        // Step 2: Initialize Log Manager FIRST (database layer)
-        if (typeof LogManager !== 'undefined') {
-            await LogManager.init();
-            console.log('✓ Log Manager initialized (IndexedDB ready)');
-        } else {
-            console.warn('⚠ Log Manager not found - logging disabled');
-        }
+    /**
+     * Initialize the barcode scanner
+     */
+    init() {
+        console.log('Initializing Barcode Scanner (Auto Shelf Assignment Mode)...');
+        this.initUSBScanner();
+        this.log('Barcode Scanner initialized - MO only, auto shelf');
+    },
 
-        // Step 3: Initialize WIP Manager (loads from database)
-        if (typeof WIPManager !== 'undefined') {
-            await WIPManager.init();
-            const cardCount = WIPManager.getCount();
-            console.log(`✓ WIP Manager initialized (${cardCount} cards loaded)`);
-        } else {
-            console.error('✗ WIP Manager not found!');
-        }
-
-        // Step 4: Initialize UI Controller (renders the UI)
-        if (typeof UIController !== 'undefined') {
-            UIController.init();
-            console.log('✓ UI Controller initialized');
-        } else {
-            console.error('✗ UI Controller not found!');
-        }
-
-        // Step 5: Initialize Navbar Controller
-        if (typeof NavbarController !== 'undefined') {
-            NavbarController.init();
-            console.log('✓ Navbar Controller initialized');
-        } else {
-            console.warn('⚠ Navbar Controller not found');
-        }
-
-        // Step 6: Initialize Barcode Scanner
-        if (typeof BarcodeScanner !== 'undefined') {
-            BarcodeScanner.init();
-            console.log('✓ Barcode Scanner initialized (USB mode)');
-        } else {
-            console.error('✗ Barcode Scanner not found!');
-        }
-
-        // Step 7: Initialize Reveal Animations
-        initRevealAnimations();
-        console.log('✓ Reveal animations initialized');
-
-        // Step 8: Setup global keyboard shortcuts
-        setupKeyboardShortcuts();
-        console.log('✓ Keyboard shortcuts initialized');
-
-        // Step 9: Setup auto-save interval (every 30 seconds)
-        setupAutoSave();
-        console.log('✓ Auto-save initialized (30s interval)');
-
-        // Step 10: Check for overdue items
-        checkOverdueItems();
-        console.log('✓ Overdue check initialized');
-
-        console.log('═══════════════════════════════════════════════════════');
-        console.log('✓ WIP Control System Ready!');
-        console.log('═══════════════════════════════════════════════════════');
-        
-        // Display system info
-        displaySystemInfo();
-
-    } catch (error) {
-        console.error('═══════════════════════════════════════════════════════');
-        console.error('✗ System initialization failed:', error);
-        console.error('═══════════════════════════════════════════════════════');
-        
-        // Show user-friendly error message
-        showInitError(error);
-    }
-});
-
-/**
- * Initialize reveal animations using Intersection Observer
- */
-function initRevealAnimations() {
-    const observerOptions = {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('active');
-                // Don't unobserve - allow re-triggering if element scrolls out and back in
+    /**
+     * Initialize USB barcode scanner listener
+     */
+    initUSBScanner() {
+        document.addEventListener('keypress', (e) => {
+            const target = e.target;
+            
+            if (target.id === 'searchMOInput') {
+                return;
             }
+            
+            if (target.id === 'addMOInput') {
+                return;
+            }
+            
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                return;
+            }
+
+            this.handleUSBScanInput(e);
         });
-    }, observerOptions);
 
-    // Observe all elements with 'reveal' class
-    document.querySelectorAll('.reveal').forEach(el => {
-        observer.observe(el);
-    });
-}
+        this.log('USB Scanner listener initialized');
+    },
 
-/**
- * Setup keyboard shortcuts for power users
- */
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        // Ignore if typing in input field
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    /**
+     * Handle USB scanner input
+     */
+    handleUSBScanInput(event) {
+        const char = event.key;
+
+        if (char === 'Enter') {
+            if (this.state.scanBuffer.length > 0) {
+                this.processScan(this.state.scanBuffer.trim());
+                this.state.scanBuffer = '';
+            }
             return;
         }
 
-        // Ctrl/Cmd + K - Focus search
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            const searchInput = document.getElementById('searchMOInput');
-            if (searchInput) {
-                searchInput.focus();
-                if (typeof UIController !== 'undefined') {
-                    UIController.setMode('find');
-                }
+        this.state.scanBuffer += char;
+
+        clearTimeout(this.state.scanTimer);
+        this.state.scanTimer = setTimeout(() => {
+            if (this.state.scanBuffer.length > 0) {
+                this.processScan(this.state.scanBuffer.trim());
+                this.state.scanBuffer = '';
             }
+        }, this.config.scanTimeout);
+    },
+
+    /**
+     * Process scanned barcode - AUTO SHELF ASSIGNMENT
+     */
+    processScan(scannedCode) {
+        this.log(`Scanned MO: ${scannedCode}`);
+        
+        // Validate scanned code
+        if (!scannedCode || scannedCode.trim() === '') {
+            this.playError();
+            this.showScanFeedback('❌ Mã MO không hợp lệ!', 'error');
+            return;
+        }
+        
+        const trimmedCode = scannedCode.trim();
+        
+        if (trimmedCode.length < 2) {
+            this.playError();
+            this.showScanFeedback('❌ Mã MO quá ngắn!', 'error');
+            return;
         }
 
-        // Ctrl/Cmd + N - Focus add MO
-        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-            e.preventDefault();
-            const addInput = document.getElementById('addMOInput');
-            if (addInput) {
-                addInput.focus();
-                if (typeof UIController !== 'undefined') {
-                    UIController.setMode('add');
-                }
-            }
-        }
-
-        // Escape - Clear search/add inputs
-        if (e.key === 'Escape') {
-            const searchInput = document.getElementById('searchMOInput');
-            const addInput = document.getElementById('addMOInput');
+        // Check for duplicate MO
+        if (WIPManager.isDuplicateMO(trimmedCode)) {
+            const existingCard = WIPManager.getByMO(trimmedCode);
+            this.playError();
             
-            if (searchInput && searchInput === document.activeElement) {
-                searchInput.value = '';
-                searchInput.blur();
-            }
-            if (addInput && addInput === document.activeElement) {
-                addInput.value = '';
-                addInput.blur();
-            }
+            this.showCardNotification(
+                'error',
+                'Lỗi trùng mã MO',
+                `<span class="notification-card-message-strong">Vị trí: ${existingCard.shelfCode}</span>`,
+                `MO: ${trimmedCode}`
+            );
             
-            // Clear hero panel if visible
-            if (typeof UIController !== 'undefined' && UIController.heroPanelCards && UIController.heroPanelCards.length > 0) {
-                UIController.clearHeroPanel();
-            }
+            console.warn(`Duplicate MO: ${trimmedCode} at ${existingCard.shelfCode}`);
+            return;
         }
 
-        // Number keys 0-9 - Quick filter by line
-        if (e.key >= '0' && e.key <= '9' && !e.ctrlKey && !e.metaKey) {
-            const lineIndex = parseInt(e.key);
-            const lines = ['all', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        const nextShelf = ShelfLocations.getNextAvailable();
+
+        if (!nextShelf) {
+            this.playError();
+            this.showScanFeedback('❌ TẤT CẢ 700 VỊ TRÍ ĐÃ ĐẦY!', 'error');
+            console.error('All shelf locations are full!');
+            return;
+        }
+
+        const card = WIPManager.createCard(nextShelf, trimmedCode);
+        
+        if (card) {
+            UIController.render();
+            this.playSuccess();
+            this.showCardNotification(
+                'success',
+                'Thêm MO thành công',
+                `<span class="notification-card-message-strong">Vị trí: ${nextShelf}</span>`,
+                `MO: "${trimmedCode}"`
+            );
+            this.log(`Card created: MO ${trimmedCode} → ${nextShelf}`);
+        } else {
+            this.playError();
+            this.showScanFeedback('Lỗi khi tạo thẻ', 'error');
+        }
+    },
+
+    /**
+     * Play success sound
+     */
+    playSuccess() {
+        if (!this.config.successBeep) return;
+        
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
             
-            if (lineIndex < lines.length && typeof UIController !== 'undefined') {
-                UIController.filterByLine(lines[lineIndex]);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (e) {
+            this.log('Audio playback failed: ' + e.message);
+        }
+    },
+
+    /**
+     * Play error sound
+     */
+    playError() {
+        if (!this.config.errorBeep) return;
+        
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 200;
+            oscillator.type = 'sawtooth';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        } catch (e) {
+            this.log('Audio playback failed: ' + e.message);
+        }
+    },
+
+    /**
+     * Show visual scan feedback (simple toast)
+     */
+    showScanFeedback(message, type = 'success') {
+        const existing = document.getElementById('scan-feedback');
+        if (existing) existing.remove();
+
+        const typeClasses = {
+            success: 'notification notification-success',
+            error: 'notification notification-error',
+            info: 'notification notification-info',
+            warning: 'notification notification-warning'
+        };
+
+        const icons = {
+            success: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+            error: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+            info: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>',
+            warning: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+        };
+
+        const feedback = document.createElement('div');
+        feedback.id = 'scan-feedback';
+        feedback.className = `fixed top-24 left-1/2 transform -translate-x-1/2 ${typeClasses[type]} z-50 animate-fade-in-out`;
+        feedback.innerHTML = `
+            <span class="notification-icon">${icons[type]}</span>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(feedback);
+
+        setTimeout(() => {
+            feedback.remove();
+        }, 3000);
+    },
+
+    /**
+     * NEW: Show card-style notification (for important alerts)
+     * @param {string} type - 'error', 'warning', 'success', 'info'
+     * @param {string} title - Notification title
+     * @param {string} message - Notification message
+     * @param {string} details - Optional details (shown in monospace box)
+     */
+    showCardNotification(type, title, message, details = null) {
+        // Remove existing card notifications
+        const existing = document.getElementById('card-notification');
+        if (existing) existing.remove();
+
+        // Icon SVGs
+        const icons = {
+            error: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>`,
+            warning: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>`,
+            success: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>`,
+            info: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>`
+        };
+
+        const notification = document.createElement('div');
+        notification.id = 'card-notification';
+        notification.className = `notification-card notification-card-${type}`;
+        
+        notification.innerHTML = `
+            <div class="notification-card-header">
+                <div class="notification-card-icon ${type}">
+                    ${icons[type]}
+                </div>
+                <div class="notification-card-content">
+                    <h3 class="notification-card-title ${type}">${title}</h3>
+                    <p class="notification-card-message ${type}">${message}</p>
+                    ${details ? `<div class="notification-card-details ${type}">${details}</div>` : ''}
+                </div>
+            </div>
+            <button class="notification-card-close" onclick="this.parentElement.remove()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        `;
+        
+        document.body.appendChild(notification);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.classList.add('removing');
+                setTimeout(() => notification.remove(), 300);
             }
-        }
-
-        // F - Toggle find mode
-        if (e.key === 'f' || e.key === 'F') {
-            if (typeof UIController !== 'undefined') {
-                UIController.setMode('find');
-            }
-        }
-
-        // A - Toggle add mode
-        if (e.key === 'a' || e.key === 'A') {
-            if (typeof UIController !== 'undefined') {
-                UIController.setMode('add');
-            }
-        }
-    });
-
-    console.log('Keyboard shortcuts enabled:');
-    console.log('  Ctrl/Cmd + K     - Focus search');
-    console.log('  Ctrl/Cmd + N     - Focus add MO');
-    console.log('  Escape           - Clear inputs');
-    console.log('  0-9              - Filter by line');
-    console.log('  F                - Find mode');
-    console.log('  A                - Add mode');
-}
-
-/**
- * Setup auto-save interval
- */
-function setupAutoSave() {
-    // Save to localStorage every 30 seconds
-    setInterval(() => {
-        if (typeof WIPManager !== 'undefined') {
-            WIPManager.saveToStorage();
-            console.log('[Auto-save] Data saved to localStorage');
-        }
-    }, 30000); // 30 seconds
-}
-
-/**
- * Check for overdue items and show notification
- */
-function checkOverdueItems() {
-    if (typeof WIPManager === 'undefined') return;
-
-    const checkOverdue = () => {
-        const overdueByTier = WIPManager.getOverdueByTier();
-
-        if (overdueByTier.total > 0) {
-            console.warn(`⚠ ${overdueByTier.total} overdue items (3+ days):`);
-            console.warn(`  🔴 ${overdueByTier.alert.length} alert`);
-        }
-    };
-
-    // Check immediately
-    checkOverdue();
-
-    // Check every 5 minutes
-    setInterval(checkOverdue, 5 * 60 * 1000);
-}
-
-/**
- * Display system information in console
- */
-function displaySystemInfo() {
-    if (typeof WIPManager === 'undefined') return;
-
-    const stats = WIPManager.getStats();
-
-    console.log('\n📊 System Statistics:');
-    console.log('─────────────────────────────────────────────────────');
-    console.log(`Total Cards: ${stats.total}`);
-    console.log(`Overdue Cards: ${stats.overdue.total} (3+ days)`);
-    console.log(`Average Time in Storage: ${stats.averageHoursInStorage} hours`);
-    console.log('\nCards by Line:');
-    
-    Object.entries(stats.byLine).forEach(([line, count]) => {
-        if (count > 0) {
-            const color = ShelfLocations.getAreaColor(`${line}-01`);
-            console.log(`  Line ${line}: ${count} cards (${color})`);
-        }
-    });
-    
-    console.log('─────────────────────────────────────────────────────\n');
-}
-
-/**
- * Show initialization error to user
- */
-function showInitError(error) {
-    const errorHTML = `
-        <div style="
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            z-index: 9999;
-            max-width: 500px;
-            text-align: center;
-        ">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-            <h2 style="color: #DC2626; margin-bottom: 1rem;">System Initialization Failed</h2>
-            <p style="color: #6B7280; margin-bottom: 1.5rem;">
-                The WIP Storage System failed to initialize properly.
-            </p>
-            <pre style="
-                background: #F3F4F6;
-                padding: 1rem;
-                border-radius: 0.5rem;
-                text-align: left;
-                overflow: auto;
-                font-size: 0.875rem;
-                color: #DC2626;
-            ">${error.message}</pre>
-            <button onclick="location.reload()" style="
-                margin-top: 1.5rem;
-                background: #0c0c09;
-                color: white;
-                padding: 0.75rem 2rem;
-                border: none;
-                border-radius: 0.5rem;
-                cursor: pointer;
-                font-weight: 500;
-            ">Reload Page</button>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', errorHTML);
-}
-
-/**
- * Global error handler
- */
-window.addEventListener('error', (event) => {
-    console.error('Global error caught:', event.error);
-});
-
-/**
- * Global unhandled promise rejection handler
- */
-window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled promise rejection:', event.reason);
-});
-
-/**
- * Page visibility change handler (for auto-save when user leaves tab)
- */
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        // User left the tab - save data
-        if (typeof WIPManager !== 'undefined') {
-            WIPManager.saveToStorage();
-            console.log('[Visibility] Data saved (tab hidden)');
-        }
-    }
-});
-
-/**
- * Before unload handler (save data before page closes)
- */
-window.addEventListener('beforeunload', () => {
-    if (typeof WIPManager !== 'undefined') {
-        WIPManager.saveToStorage();
-        console.log('[Unload] Data saved before page close');
-    }
-});
-
-/**
- * Console helper functions for debugging
- */
-window.WIP = {
-    // Get system info
-    info: () => {
-        displaySystemInfo();
+        }, 5000);
     },
-    
-    // Get all cards
-    cards: () => {
-        if (typeof WIPManager !== 'undefined') {
-            return WIPManager.getAll();
-        }
-        return [];
-    },
-    
-    // Get stats
-    stats: () => {
-        if (typeof WIPManager !== 'undefined') {
-            return WIPManager.getStats();
-        }
-        return null;
-    },
-    
-    // Clear all data (with confirmation)
-    clear: () => {
-        if (typeof WIPManager !== 'undefined') {
-            return WIPManager.clearAll();
-        }
-        return false;
-    },
-    
-    // Search
-    search: (term) => {
-        if (typeof WIPManager !== 'undefined') {
-            return WIPManager.search(term);
-        }
-        return [];
-    },
-    
-    // Get overdue items
-    overdue: () => {
-        if (typeof WIPManager !== 'undefined') {
-            return WIPManager.getOverdue();
-        }
-        return [];
-    },
-    
-    // Simulate barcode scan (for testing)
-    scan: (code) => {
-        if (typeof BarcodeScanner !== 'undefined') {
-            BarcodeScanner.simulateScan(code);
-        }
-    },
-    
-    // Get random shelf location
-    randomShelf: () => {
-        if (typeof ShelfLocations !== 'undefined') {
-            return ShelfLocations.getRandom();
-        }
-        return null;
-    },
-    
-    // Toggle continuous scan mode
-    continuous: () => {
-        if (typeof BarcodeScanner !== 'undefined') {
-            return BarcodeScanner.toggleContinuousMode();
-        }
-        return false;
-    },
-    
-    // Help
-    help: () => {
-        console.log(`
-WIP Console Helper Commands:
-═══════════════════════════════════════════════════════
 
-WIP.info()          - Show system statistics
-WIP.cards()         - Get all cards
-WIP.stats()         - Get detailed statistics
-WIP.clear()         - Clear all data (with confirmation)
-WIP.search(term)    - Search for cards
-WIP.overdue()       - Get overdue cards (>24h)
-WIP.scan(code)      - Simulate barcode scan
-WIP.randomShelf()   - Get random shelf location
-WIP.continuous()    - Toggle continuous scan mode
-WIP.help()          - Show this help
+    /**
+     * Toggle continuous scan mode
+     */
+    toggleContinuousMode() {
+        this.config.continuousMode = !this.config.continuousMode;
+        const status = this.config.continuousMode ? 'BẬT' : 'TẮT';
+        
+        this.showScanFeedback(`Chế độ liên tục: ${status}`, 'info');
+        
+        this.log(`Continuous mode: ${this.config.continuousMode}`);
+        return this.config.continuousMode;
+    },
 
-Keyboard Shortcuts:
-───────────────────────────────────────────────────────
-Ctrl/Cmd + K       - Focus search
-Ctrl/Cmd + N       - Focus add MO
-Escape             - Clear inputs
-0-9                - Filter by line
-F                  - Find mode
-A                  - Add mode
+    /**
+     * Get current status
+     */
+    getStatus() {
+        return {
+            continuousMode: this.config.continuousMode,
+            mode: 'auto-assign',
+            totalSlots: 700,
+            availableSlots: this.getAvailableSlotsCount()
+        };
+    },
 
-═══════════════════════════════════════════════════════
-        `);
+    /**
+     * Get count of available slots
+     */
+    getAvailableSlotsCount() {
+        const totalSlots = 700;
+        const occupiedSlots = WIPManager.getCount();
+        return totalSlots - occupiedSlots;
+    },
+
+    /**
+     * Manual trigger for testing
+     */
+    simulateScan(code) {
+        this.processScan(code);
+    },
+
+    /**
+     * Log debug messages
+     */
+    log(message) {
+        if (this.config.debugMode) {
+            console.log(`[BarcodeScanner] ${message}`);
+        }
     }
 };
-
-// Show help on first load
-console.log('\n💡 Tip: Type WIP.help() for console commands\n');
