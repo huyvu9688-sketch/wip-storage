@@ -2295,8 +2295,8 @@ h4 {
 ══════════════════════════════════════════════════════════ */
 
 .warehouse-line-ready {
-  background: rgba(124, 156, 90, 0.08);
-  border-color: rgba(124, 156, 90, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
   min-height: 4.5rem; /* REDUCED */
   width: 100%;
 }
@@ -2361,8 +2361,8 @@ h4 {
 ══════════════════════════════════════════════════════════ */
 
 .warehouse-line-arrangement {
-  background: rgba(251, 191, 36, 0.08); /* CHANGED to amber */
-  border-color: rgba(251, 191, 36, 0.2); /* CHANGED to amber */
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
   min-height: 4.5rem; /* REDUCED */
   width: 100%;
 }
@@ -2520,3 +2520,222 @@ h4 {
   margin: 0; /* Remove any margin */
 }
 
+/* ══════════════════════════════════════════════════════════
+   LINE I - SPECIAL "OTHER AREA" BOX (SAME HEIGHT AS NORMAL)
+══════════════════════════════════════════════════════════ */
+
+.warehouse-line-other {
+  background: rgba(124, 156, 90, 0.08);
+  border-color: rgba(124, 156, 90, 0.2);
+  min-height: 4.5rem; /* SAME as normal rows */
+  width: 100%;
+}
+
+.warehouse-line-other:hover {
+  background: rgba(124, 156, 90, 0.12);
+  border-color: rgba(124, 156, 90, 0.3);
+}
+
+.warehouse-other-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* REDUCED from 0.75rem */
+  padding: 0.75rem;
+  background: linear-gradient(135deg, rgba(124, 156, 90, 0.15) 0%, rgba(124, 156, 90, 0.08) 100%);
+  border: 2px solid rgba(124, 156, 90, 0.3);
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  height: 100%;
+}
+
+.warehouse-other-box:hover {
+  background: linear-gradient(135deg, rgba(124, 156, 90, 0.25) 0%, rgba(124, 156, 90, 0.15) 100%);
+  border-color: rgba(124, 156, 90, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 156, 90, 0.2);
+}
+
+.warehouse-other-box iconify-icon {
+  flex-shrink: 0;
+  width: 20px; /* REDUCED from 24px */
+  height: 20px;
+  animation: pulse-other 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-other {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+}
+
+.other-text {
+  font-size: 0.9375rem; /* REDUCED from 1rem */
+  font-weight: 600;
+  color: rgba(124, 156, 90, 1);
+  font-family: 'Fira Sans', sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: subpixel-antialiased !important;
+  -moz-osx-font-smoothing: auto !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   LINE J - SPECIAL "READY TO GO" BOX (SAME HEIGHT AS NORMAL)
+══════════════════════════════════════════════════════════ */
+
+.warehouse-line-ready {
+  background: rgba(124, 156, 90, 0.08);
+  border-color: rgba(124, 156, 90, 0.2);
+  min-height: 4.5rem; /* SAME as normal rows */
+  width: 100%;
+}
+
+.warehouse-line-ready:hover {
+  background: rgba(124, 156, 90, 0.12);
+  border-color: rgba(124, 156, 90, 0.3);
+}
+
+.warehouse-ready-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* REDUCED from 0.75rem */
+  padding: 0.75rem;
+  background: linear-gradient(135deg, rgba(124, 156, 90, 0.15) 0%, rgba(124, 156, 90, 0.08) 100%);
+  border: 2px solid rgba(124, 156, 90, 0.3);
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  height: 100%;
+}
+
+.warehouse-ready-box:hover {
+  background: linear-gradient(135deg, rgba(124, 156, 90, 0.25) 0%, rgba(124, 156, 90, 0.15) 100%);
+  border-color: rgba(124, 156, 90, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 156, 90, 0.2);
+}
+
+.warehouse-ready-box iconify-icon {
+  flex-shrink: 0;
+  width: 20px; /* REDUCED from 24px */
+  height: 20px;
+  animation: pulse-check 2s ease-in-out infinite;
+}
+
+@keyframes pulse-check {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+}
+
+.ready-text {
+  font-size: 0.9375rem; /* REDUCED from 1rem */
+  font-weight: 600;
+  color: rgba(124, 156, 90, 1);
+  font-family: 'Fira Sans', sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: subpixel-antialiased !important;
+  -moz-osx-font-smoothing: auto !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   LINE K & L - SPECIAL "ARRANGEMENT AREA" BOX (SAME HEIGHT)
+══════════════════════════════════════════════════════════ */
+
+.warehouse-line-arrangement {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.2);
+  min-height: 4.5rem; /* SAME as normal rows */
+  width: 100%;
+}
+
+.warehouse-line-arrangement:hover {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.warehouse-arrangement-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* REDUCED from 0.75rem */
+  padding: 0.75rem;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.08) 100%);
+  border: 2px solid rgba(251, 191, 36, 0.3);
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  height: 100%;
+}
+
+.warehouse-arrangement-box:hover {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.15) 100%);
+  border-color: rgba(251, 191, 36, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+}
+
+.warehouse-arrangement-box iconify-icon {
+  flex-shrink: 0;
+  width: 20px; /* REDUCED from 24px */
+  height: 20px;
+  animation: pulse-layers 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-layers {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+}
+
+.arrangement-text {
+  font-size: 0.9375rem; /* REDUCED from 1rem */
+  font-weight: 600;
+  color: rgba(251, 191, 36, 1);
+  font-family: 'Fira Sans', sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: subpixel-antialiased !important;
+  -moz-osx-font-smoothing: auto !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SPECIAL LINES WITHOUT LABELS (I, J, K, L)
+══════════════════════════════════════════════════════════ */
+
+.warehouse-line-no-label {
+  gap: 0;
+  padding: 0.75rem;
+  min-height: 4.5rem; /* SAME as normal rows */
+}
+
+.warehouse-line-no-label .warehouse-ready-box,
+.warehouse-line-no-label .warehouse-other-box,
+.warehouse-line-no-label .warehouse-arrangement-box {
+  margin: 0;
+}
