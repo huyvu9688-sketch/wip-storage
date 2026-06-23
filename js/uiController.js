@@ -1,5 +1,5 @@
 /**
- * UI Controller - Storage Layout Focus
+ * UI Controller - Storage Layout Focus with Shelf Detail Card
  * Handles all UI rendering and user interactions
  */
 
@@ -14,10 +14,15 @@ const UIController = {
         heroPanelCards: null,
         heroPanelFooter: null,
         heroPanelCount: null,
-        heroClearBtn: null
+        heroClearBtn: null,
+        shelfDetailModal: null,
+        shelfCardLocation: null,
+        shelfCardMOList: null,
+        shelfCardAddBtn: null
     },
 
     heroPanelCards: [],
+    currentShelfCode: null,
     OVERDUE_THRESHOLD_HOURS: 72,
 
     /**
@@ -34,10 +39,15 @@ const UIController = {
         this.elements.heroPanelFooter = document.getElementById('hero-panel-footer');
         this.elements.heroPanelCount = document.getElementById('hero-panel-count');
         this.elements.heroClearBtn = document.getElementById('hero-clear-btn');
+        this.elements.shelfDetailModal = document.getElementById('shelf-detail-modal');
+        this.elements.shelfCardLocation = document.getElementById('shelf-card-location');
+        this.elements.shelfCardMOList = document.getElementById('shelf-card-mo-list');
+        this.elements.shelfCardAddBtn = document.getElementById('shelf-card-add-btn');
 
         this.setupEventListeners();
         this.setupHeroPanelScrollListener();
         this.setupExcelImport();
+        this.setupShelfCardModalListeners();
         this.render();
         this.setMode('add');
     },
@@ -70,6 +80,27 @@ const UIController = {
                 }
             });
         }
+    },
+
+    /**
+     * Setup shelf card modal listeners
+     */
+    setupShelfCardModalListeners() {
+        if (!this.elements.shelfDetailModal) return;
+
+        // Close modal when clicking overlay (not the card)
+        this.elements.shelfDetailModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.shelfDetailModal) {
+                this.closeShelfDetailCard();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !this.elements.shelfDetailModal.classList.contains('hidden')) {
+                this.closeShelfDetailCard();
+            }
+        });
     },
 
     /**
@@ -441,26 +472,6 @@ const UIController = {
 
     /**
      * Render Storage Layout Visualization
-     * 
-     * LEFT COLUMN (top to bottom):
-     *   1. Cushion rack (P data)
-     *   2. H [boxes] (O data, 35 boxes, stats on left)
-     *   3. I [boxes] (N data, 70 boxes, stats on left)
-     *   4. J [boxes] (M data, 70 boxes, stats on left)
-     *   5. Arrangement Area (L data)
-     *   6. Arrangement Area (K data)
-     *   7. Ready to go (J data - original)
-     *   8. Other area (I data - original)
-     * 
-     * RIGHT COLUMN (top to bottom):
-     *   1. Cushion rack (H data - original)
-     *   2. G [boxes] (G data, 35 boxes, normal layout)
-     *   3. F [boxes] (F data, 70 boxes, normal layout)
-     *   4. E [boxes] (E data, 70 boxes, normal layout)
-     *   5. D [boxes] (D data, 70 boxes, normal layout)
-     *   6. C [boxes] (C data, 70 boxes, normal layout)
-     *   7. B [boxes] (B data, 70 boxes, normal layout)
-     *   8. A [boxes] (A data, 70 boxes, normal layout)
      */
     renderStorageLayout() {
         const container = document.getElementById('storage-warehouse-grid');
@@ -483,18 +494,18 @@ const UIController = {
         });
 
         const leftColumn = [
-            { type: 'cushion', dataLine: 'P' },
-            { type: 'normal', dataLine: 'O', displayLine: 'H' },
-            { type: 'normal', dataLine: 'N', displayLine: 'I' },
-            { type: 'normal', dataLine: 'M', displayLine: 'J' },
-            { type: 'arrangement', dataLine: 'L' },
-            { type: 'arrangement', dataLine: 'K' },
-            { type: 'ready', dataLine: 'J' },
-            { type: 'other', dataLine: 'I' }
+            { type: 'cushion', dataLine: 'P', displayLine: 'P' },
+            { type: 'normal', dataLine: 'O', displayLine: 'O' },
+            { type: 'normal', dataLine: 'N', displayLine: 'N' },
+            { type: 'normal', dataLine: 'M', displayLine: 'M' },
+            { type: 'arrangement', dataLine: 'L', displayLine: 'L' },
+            { type: 'arrangement', dataLine: 'K', displayLine: 'K' },
+            { type: 'ready', dataLine: 'J', displayLine: 'J' },
+            { type: 'other', dataLine: 'I', displayLine: 'I' }
         ];
 
         const rightColumn = [
-            { type: 'cushion', dataLine: 'H' },
+            { type: 'cushion', dataLine: 'H', displayLine: 'H' },
             { type: 'normal', dataLine: 'G', displayLine: 'G' },
             { type: 'normal', dataLine: 'F', displayLine: 'F' },
             { type: 'normal', dataLine: 'E', displayLine: 'E' },
@@ -507,12 +518,10 @@ const UIController = {
         let leftHTML = '';
         let rightHTML = '';
 
-        // Render left column (label on right, stats on left for normal lines)
         leftColumn.forEach(item => {
             leftHTML += this.renderLineByType(item, occupancyMap, true);
         });
 
-        // Render right column (normal layout)
         rightColumn.forEach(item => {
             rightHTML += this.renderLineByType(item, occupancyMap, false);
         });
@@ -538,9 +547,6 @@ const UIController = {
 
     /**
      * Render a line based on its type
-     * @param {object} item - { type, dataLine, displayLine? }
-     * @param {object} occupancyMap
-     * @param {boolean} isLeftColumn - for normal lines: swap stats/label
      */
     renderLineByType(item, occupancyMap, isLeftColumn = false) {
         const { type, dataLine, displayLine } = item;
@@ -567,7 +573,7 @@ const UIController = {
     },
 
     /**
-     * Render Cushion Rack (no line label/tag)
+     * Render Cushion Rack
      */
     renderCushionRack(dataLine) {
         return `
@@ -581,7 +587,7 @@ const UIController = {
     },
 
     /**
-     * Render Arrangement Area (no line label/tag)
+     * Render Arrangement Area
      */
     renderArrangementArea(dataLine) {
         return `
@@ -595,7 +601,7 @@ const UIController = {
     },
 
     /**
-     * Render Ready to go (no line label/tag)
+     * Render Ready to go
      */
     renderReadyToGo(dataLine) {
         return `
@@ -609,7 +615,7 @@ const UIController = {
     },
 
     /**
-     * Render Other area (no line label/tag)
+     * Render Other area
      */
     renderOtherArea(dataLine) {
         return `
@@ -624,10 +630,6 @@ const UIController = {
 
     /**
      * Render normal storage line with boxes
-     * @param {string} dataLine - actual line for shelf codes
-     * @param {object} occupancyMap
-     * @param {string} displayLine - label shown in UI
-     * @param {boolean} isLeftColumn - if true, stats left, label right
      */
     renderNormalLine(dataLine, occupancyMap, displayLine, isLeftColumn = false) {
         const lineColor = ShelfLocations.getAreaColor(`${dataLine}-01`);
@@ -671,7 +673,6 @@ const UIController = {
         const containerClass = isSingleRow ? 'warehouse-slots-container-single' : 'warehouse-slots-container';
         const rowBaseClass = isSingleRow ? 'warehouse-line-row warehouse-line-single-row' : 'warehouse-line-row';
         
-        // LEFT COLUMN: stats left, content middle, label right
         if (isLeftColumn) {
             return `
                 <div class="${rowBaseClass} warehouse-line-right" data-line="${dataLine}">
@@ -689,7 +690,6 @@ const UIController = {
             `;
         }
         
-        // RIGHT COLUMN: label left, content middle, stats right
         return `
             <div class="${rowBaseClass}" data-line="${dataLine}">
                 <div class="warehouse-line-label">
@@ -707,20 +707,203 @@ const UIController = {
     },
 
     /**
-     * Handle storage slot click
+     * Handle storage slot click - Opens shelf detail card
      */
     handleStorageSlotClick(shelfCode) {
+        this.currentShelfCode = shelfCode;
+        this.openShelfDetailCard(shelfCode);
+    },
+
+    /**
+     * Open shelf detail card
+     */
+    openShelfDetailCard(shelfCode) {
         const cards = WIPManager.getByShelf(shelfCode);
         
-        if (cards.length === 0) {
-            BarcodeScanner.showScanFeedback(`Position ${shelfCode} is empty`, 'info');
+        // Update location header
+        this.elements.shelfCardLocation.textContent = shelfCode;
+        
+        // Render MO list
+        this.renderShelfCardMOList(cards);
+        
+        // Show modal
+        this.elements.shelfDetailModal.classList.remove('hidden');
+        
+        // Disable body scroll
+        document.body.style.overflow = 'hidden';
+        
+        console.log(`Opened shelf detail card for: ${shelfCode}`);
+    },
+
+    /**
+     * Close shelf detail card
+     */
+    closeShelfDetailCard() {
+        this.elements.shelfDetailModal.classList.add('hidden');
+        this.currentShelfCode = null;
+        
+        // Re-enable body scroll
+        document.body.style.overflow = '';
+        
+        // Refresh storage layout to update slot colors
+        this.render();
+        
+        console.log('Closed shelf detail card');
+    },
+
+    /**
+     * Render MO list in shelf card
+     */
+    renderShelfCardMOList(cards) {
+        if (!this.elements.shelfCardMOList) return;
+        
+        // Get all MOs at this shelf
+        const allMOs = [];
+        cards.forEach(card => {
+            const moNumbers = card.moNumbers || [card.moNumber];
+            moNumbers.forEach(mo => {
+                allMOs.push({
+                    moNumber: mo,
+                    createdAt: card.createdAt,
+                    cardId: card.id
+                });
+            });
+        });
+        
+        // Update Add button state
+        const isAtMax = allMOs.length >= WIPManager.MAX_MOS_PER_CARD;
+        this.elements.shelfCardAddBtn.disabled = isAtMax;
+        
+        if (allMOs.length === 0) {
+            // Empty state
+            this.elements.shelfCardMOList.innerHTML = `
+                <div class="shelf-card-empty">
+                    <iconify-icon icon="solar:box-linear" width="48"></iconify-icon>
+                    <p>Vị trí này đang trống<br>Nhấn "Thêm MO" để thêm</p>
+                </div>
+            `;
             return;
         }
         
-        this.updateHeroPanel(cards);
-        BarcodeScanner.showScanFeedback(`✓ Showing ${cards.length} card(s) from ${shelfCode}`, 'success');
+        // Render MO items
+        const html = allMOs.map(mo => {
+            const createdDate = new Date(mo.createdAt);
+            const dateStr = createdDate.toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            const timeStr = createdDate.toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            
+            return `
+                <div class="shelf-card-mo-item">
+                    <div class="shelf-card-mo-number">
+                        <iconify-icon icon="solar:box-minimalistic-bold" width="20"></iconify-icon>
+                        ${mo.moNumber}
+                    </div>
+                    <div class="shelf-card-mo-time">
+                        <iconify-icon icon="solar:clock-circle-linear" width="14"></iconify-icon>
+                        ${dateStr} • ${timeStr}
+                    </div>
+                    <button class="shelf-card-remove-mo" 
+                            onclick="UIController.removeMOFromShelfCard('${mo.cardId}', '${mo.moNumber}')"
+                            title="Xóa MO này">
+                        <iconify-icon icon="solar:trash-bin-minimalistic-bold" width="16"></iconify-icon>
+                    </button>
+                </div>
+            `;
+        }).join('');
         
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        this.elements.shelfCardMOList.innerHTML = html;
+    },
+
+    /**
+     * Add MO to current shelf
+     */
+    addMOToShelf() {
+        if (!this.currentShelfCode) return;
+        
+        const moNumber = prompt('Nhập mã MO:');
+        if (!moNumber || moNumber.trim() === '') return;
+        
+        const trimmedMO = moNumber.trim();
+        
+        // Check for duplicate
+        if (WIPManager.isDuplicateMO(trimmedMO)) {
+            const existingCard = WIPManager.getByMO(trimmedMO);
+            BarcodeScanner.playError();
+            BarcodeScanner.showCardNotification(
+                'error',
+                'Lỗi trùng mã MO',
+                `MO "${trimmedMO}" đã tồn tại tại vị trí ${existingCard.shelfCode}`,
+                null
+            );
+            return;
+        }
+        
+        // Create or add to card
+        const card = WIPManager.createCard(this.currentShelfCode, trimmedMO);
+        
+        if (card) {
+            BarcodeScanner.playSuccess();
+            BarcodeScanner.showScanFeedback(`✓ Đã thêm MO "${trimmedMO}" vào ${this.currentShelfCode}`, 'success');
+            
+            // Refresh card display
+            const cards = WIPManager.getByShelf(this.currentShelfCode);
+            this.renderShelfCardMOList(cards);
+            
+            // Refresh storage layout
+            this.render();
+            
+            // Update dashboard if Excel schedule is loaded
+            if (typeof ExcelParser !== 'undefined' && ExcelParser.scheduledMOs) {
+                this.updateMODashboard();
+            }
+        } else {
+            BarcodeScanner.playError();
+            BarcodeScanner.showScanFeedback('Không thể thêm MO (đã đầy hoặc lỗi)', 'error');
+        }
+    },
+
+    /**
+     * Remove MO from shelf card
+     */
+    removeMOFromShelfCard(cardId, moNumber) {
+        if (!confirm(`Xác nhận xóa MO "${moNumber}" khỏi kệ?`)) {
+            return;
+        }
+        
+        const success = WIPManager.removeMOFromCard(cardId, moNumber);
+        
+        if (success) {
+            BarcodeScanner.playSuccess();
+            BarcodeScanner.showScanFeedback(`✓ Đã xóa MO "${moNumber}"`, 'success');
+            
+            // Check if shelf is now empty
+            const cards = WIPManager.getByShelf(this.currentShelfCode);
+            if (cards.length === 0) {
+                // Close card if empty
+                this.closeShelfDetailCard();
+            } else {
+                // Refresh card display
+                this.renderShelfCardMOList(cards);
+            }
+            
+            // Refresh storage layout
+            this.render();
+            
+            // Update dashboard if Excel schedule is loaded
+            if (typeof ExcelParser !== 'undefined' && ExcelParser.scheduledMOs) {
+                this.updateMODashboard();
+            }
+        } else {
+            BarcodeScanner.playError();
+            BarcodeScanner.showScanFeedback('Lỗi khi xóa MO', 'error');
+        }
     },
 
     /**
@@ -785,7 +968,7 @@ const UIController = {
         this.updateHeroPanelDisplay();
         
         setTimeout(() => {
-            this.updateHeroPanelScrollState();
+            this.setMode('add');
         }, 100);
     },
 
@@ -1035,8 +1218,17 @@ const UIController = {
      * Set mode (add/find)
      */
     setMode(mode) {
+        console.log('═════════════════════════════════════');
+        console.log(`🎯 setMode() called with mode: "${mode}"`);
+        console.log('═════════════════════════════════════');
+        
         const addModeBtn = document.getElementById('add-mode-btn');
         const findModeBtn = document.getElementById('find-mode-btn');
+        
+        console.log('Button elements found:', {
+            addModeBtn: !!addModeBtn,
+            findModeBtn: !!findModeBtn
+        });
         
         const addMOInput = document.getElementById('addMOInput');
         const addMOBtn = document.getElementById('addMOBtn');
@@ -1048,52 +1240,113 @@ const UIController = {
         
         const heroPanelBody = document.getElementById('hero-panel-body');
         
+        console.log('Input elements found:', {
+            addMOInput: !!addMOInput,
+            addMOBtn: !!addMOBtn,
+            addMOContainer: !!addMOContainer,
+            searchMOInput: !!searchMOInput,
+            searchMOBtn: !!searchMOBtn,
+            searchMOContainer: !!searchMOContainer
+        });
+        
+        if (!addModeBtn || !findModeBtn) {
+            console.error('❌ Mode buttons not found in DOM!');
+            return;
+        }
+        
         if (mode === 'add') {
-            addModeBtn.style.backgroundColor = 'oklch(0.58 0.031 107.3)';
-            addModeBtn.style.borderColor = 'oklch(0.58 0.031 107.3)';
-            addModeBtn.classList.add('text-white');
-            addModeBtn.classList.remove('text-[#0B1F3A]');
+            console.log('➡️ Activating ADD mode...');
             
-            findModeBtn.style.backgroundColor = 'rgba(251,251,249,0.9)';
-            findModeBtn.style.borderColor = 'rgba(12,12,9,0.12)';
-            findModeBtn.classList.remove('text-white');
-            findModeBtn.classList.add('text-[#0B1F3A]');
+            // Toggle button states
+            addModeBtn.classList.add('active');
+            findModeBtn.classList.remove('active');
+            console.log('✓ Button classes toggled');
             
-            if (addMOContainer) addMOContainer.classList.remove('opacity-50', 'pointer-events-none');
+            // Enable Add MO section
+            if (addMOContainer) {
+                addMOContainer.classList.remove('opacity-50', 'pointer-events-none');
+                console.log('✓ Add MO container enabled');
+            }
             if (addMOInput) {
                 addMOInput.disabled = false;
-                addMOInput.focus();
+                setTimeout(() => {
+                    addMOInput.focus();
+                    console.log('✓ Add MO input focused');
+                }, 100);
             }
-            if (addMOBtn) addMOBtn.disabled = false;
+            if (addMOBtn) {
+                addMOBtn.disabled = false;
+                console.log('✓ Add MO button enabled');
+            }
             
-            if (searchMOContainer) searchMOContainer.classList.add('opacity-50', 'pointer-events-none');
-            if (searchMOInput) searchMOInput.disabled = true;
-            if (searchMOBtn) searchMOBtn.disabled = true;
-            if (heroPanelBody) heroPanelBody.parentElement.classList.add('opacity-50', 'pointer-events-none');
+            // Disable Find MO section
+            if (searchMOContainer) {
+                searchMOContainer.classList.add('opacity-50', 'pointer-events-none');
+                console.log('✓ Search container disabled');
+            }
+            if (searchMOInput) {
+                searchMOInput.disabled = true;
+            }
+            if (searchMOBtn) {
+                searchMOBtn.disabled = true;
+            }
+            if (heroPanelBody) {
+                const panel = heroPanelBody.parentElement;
+                if (panel) {
+                    panel.classList.add('opacity-50', 'pointer-events-none');
+                    console.log('✓ Hero panel disabled');
+                }
+            }
+            
+            console.log('✅ ADD MO MODE ACTIVATED');
             
         } else if (mode === 'find') {
-            findModeBtn.style.backgroundColor = 'oklch(0.58 0.031 107.3)';
-            findModeBtn.style.borderColor = 'oklch(0.58 0.031 107.3)';
-            findModeBtn.classList.add('text-white');
-            findModeBtn.classList.remove('text-[#0B1F3A]');
+            console.log('➡️ Activating FIND mode...');
             
-            addModeBtn.style.backgroundColor = 'rgba(251,251,249,0.9)';
-            addModeBtn.style.borderColor = 'rgba(12,12,9,0.12)';
-            addModeBtn.classList.remove('text-white');
-            addModeBtn.classList.add('text-[#0B1F3A]');
+            // Toggle button states
+            findModeBtn.classList.add('active');
+            addModeBtn.classList.remove('active');
+            console.log('✓ Button classes toggled');
             
-            if (searchMOContainer) searchMOContainer.classList.remove('opacity-50', 'pointer-events-none');
+            // Enable Find MO section
+            if (searchMOContainer) {
+                searchMOContainer.classList.remove('opacity-50', 'pointer-events-none');
+                console.log('✓ Search container enabled');
+            }
             if (searchMOInput) {
                 searchMOInput.disabled = false;
-                searchMOInput.focus();
+                setTimeout(() => {
+                    searchMOInput.focus();
+                    console.log('✓ Search input focused');
+                }, 100);
             }
-            if (searchMOBtn) searchMOBtn.disabled = false;
-            if (heroPanelBody) heroPanelBody.parentElement.classList.remove('opacity-50', 'pointer-events-none');
+            if (searchMOBtn) {
+                searchMOBtn.disabled = false;
+            }
+            if (heroPanelBody) {
+                const panel = heroPanelBody.parentElement;
+                if (panel) {
+                    panel.classList.remove('opacity-50', 'pointer-events-none');
+                    console.log('✓ Hero panel enabled');
+                }
+            }
             
-            if (addMOContainer) addMOContainer.classList.add('opacity-50', 'pointer-events-none');
-            if (addMOInput) addMOInput.disabled = true;
-            if (addMOBtn) addMOBtn.disabled = true;
+            // Disable Add MO section
+            if (addMOContainer) {
+                addMOContainer.classList.add('opacity-50', 'pointer-events-none');
+                console.log('✓ Add MO container disabled');
+            }
+            if (addMOInput) {
+                addMOInput.disabled = true;
+            }
+            if (addMOBtn) {
+                addMOBtn.disabled = true;
+            }
+            
+            console.log('✅ FIND MO MODE ACTIVATED');
         }
+        
+        console.log('═════════════════════════════════════\n');
     },
 
     /**
