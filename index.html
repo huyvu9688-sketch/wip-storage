@@ -190,16 +190,12 @@
     
     <!-- Mode Toggle Buttons - Fixed at Top of Hero -->
     <div class="flex justify-center gap-6 mb-12 pt-8">
-      <button onclick="UIController.setMode('add')" id="add-mode-btn"
-              class="mode-btn text-white"
-              style="background: oklch(0.58 0.031 107.3); border: 2px solid oklch(0.58 0.031 107.3)">
+      <button onclick="UIController.setMode('add')" id="add-mode-btn" class="mode-btn">
         <iconify-icon icon="solar:add-circle-bold" width="24"></iconify-icon>
         <span>Thêm MO</span>
       </button>
 
-      <button onclick="UIController.setMode('find')" id="find-mode-btn"
-              class="mode-btn"
-              style="background: rgba(251,251,249,0.9); border: 2px solid rgba(12,12,9,0.12); color: var(--olive-950)">
+      <button onclick="UIController.setMode('find')" id="find-mode-btn" class="mode-btn">
         <iconify-icon icon="solar:magnifer-linear" width="24" stroke-width="1.5"></iconify-icon>
         <span>Tìm MO</span>
       </button>
@@ -390,9 +386,7 @@
       <h2 class="font-['Playfair_Display'] text-3xl md:text-4xl font-medium tracking-tight mb-3 text-white">
         Sơ Đồ Kho
       </h2>
-      <p class="text-sm font-light max-w-lg" style="color: rgba(255,255,255,0.55)">
-        Hiển thị trực quan tất cả 1,120 vị trí lưu trữ (16 dây chuyền × 70 vị trí)
-      </p>
+
     </div>
 
     <!-- 2-Column Layout Container -->
@@ -538,6 +532,38 @@
 <script src="js/uiController.js"></script>
 <script src="js/navbar.js"></script>
 <script src="js/app.js"></script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SHELF DETAIL CARD MODAL
+════════════════════════════════════════════════════════════ -->
+<div id="shelf-detail-modal" class="shelf-modal-overlay hidden">
+  <div class="shelf-detail-card">
+    <!-- Close Button -->
+    <button class="shelf-card-close" onclick="UIController.closeShelfDetailCard()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+
+    <!-- Shelf Location Header -->
+    <div class="shelf-card-header">
+      <iconify-icon icon="solar:map-point-bold" width="32" style="color: var(--gold)"></iconify-icon>
+      <h2 id="shelf-card-location" class="shelf-card-location-text">A-01</h2>
+    </div>
+
+    <!-- MO List (max 3) -->
+    <div id="shelf-card-mo-list" class="shelf-card-mo-list">
+      <!-- MO items will be inserted here -->
+    </div>
+
+    <!-- Add MO Button -->
+    <button id="shelf-card-add-btn" class="shelf-card-add-btn" onclick="UIController.addMOToShelf()">
+      <iconify-icon icon="solar:add-circle-bold" width="20"></iconify-icon>
+      <span>Thêm MO</span>
+    </button>
+  </div>
+</div>
 
 </body>
 </html>
